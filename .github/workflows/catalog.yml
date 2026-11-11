@@ -27,7 +27,7 @@ env:
   STOREFRONT: ${{ secrets.NOOK_TOKEN != '' }}
 jobs:
   catalog:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.RUNNER || 'ubuntu-24.04' }}
     steps:
       - uses: actions/checkout@v4
         if: github.event.action != 'closed'
