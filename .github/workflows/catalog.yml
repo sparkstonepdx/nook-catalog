@@ -20,7 +20,7 @@ permissions:
   contents: write
   pull-requests: write
 concurrency:
-  group: catalog-${{ github.event.pull_request.number || 'main' }}
+  group: catalog-${{ github.ref }}
   cancel-in-progress: false
 env:
   PUBLISH: ${{ github.event_name != 'pull_request' }}
