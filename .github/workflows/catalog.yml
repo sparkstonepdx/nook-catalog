@@ -5,7 +5,7 @@
 # Pull requests build both and deploy a preview of the storefront, but publish nothing.
 #
 # Storefront setup (optional): the NOOK_TOKEN secret (a deploy token) and the NOOK_URL variable (the
-# dashboard's address). NOOK_SITE picks the site name (default: apps).
+# dashboard's address). NOOK_SITE picks the site name (default: catalog, so catalog.<default domain>).
 name: catalog
 on:
   push:
@@ -87,5 +87,5 @@ jobs:
         with:
           url: ${{ vars.NOOK_URL }}
           token: ${{ secrets.NOOK_TOKEN }}
-          site: ${{ vars.NOOK_SITE || 'apps' }}
+          site: ${{ vars.NOOK_SITE || 'catalog' }}
           dir: site/dist/client
