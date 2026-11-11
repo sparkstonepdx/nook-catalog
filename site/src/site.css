@@ -1,0 +1,42 @@
+/* The catalog site's own layout. Colours, type and components come from @sparkstone/css 4 and tokens.css,
+   the same reading-nook reference as the nook dashboard. */
+body { font-family: var(--font); }
+.mono, pre, code { font-family: var(--mono); }
+.mono { font-size: 0.9em; }
+.top-bar { gap: var(--space-md); padding-block: var(--space-xs); padding-top: max(var(--space-xs), env(safe-area-inset-top, 0px)); }
+.brand { font-family: var(--display); font-weight: var(--display-weight); font-size: var(--text-lg); color: var(--ink); text-decoration: none; margin-inline-end: auto; }
+.brand-sub { color: var(--muted); font-weight: 500; }
+.page { padding-top: var(--space-xl); padding-bottom: var(--space-3xl); }
+.hero { margin-bottom: var(--space-xl); }
+.hero h1 { font-size: clamp(var(--text-xl), 7vw, 2.5rem); margin: var(--space-xs) 0 var(--space-md); }
+.lede { color: var(--muted); max-width: 40rem; margin: 0 0 var(--space-xl); font-size: var(--text-lg); line-height: 1.45; }
+.hint { color: var(--muted); font-size: var(--text-sm); }
+.list + .hint { margin-top: var(--space-sm); }
+.row-main > :first-child { white-space: normal; }
+.row-end .chev { font-size: var(--text-lg); }
+.verified { gap: var(--space-2xs); font-size: var(--text-xs); vertical-align: middle; }
+
+/* an app's mark: its initial on a book-cloth coin, until apps ship art */
+.app-coin { flex: none; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: var(--radius-field); background: var(--accent); color: var(--accent-ink); font-family: var(--display); font-weight: var(--display-weight); font-size: var(--text-lg); }
+.app-coin.big { width: 4rem; height: 4rem; font-size: var(--text-xl); border-radius: var(--radius-box); }
+
+.back-row { margin: 0 0 var(--space-md) calc(-1 * var(--space-sm)); }
+.btn-sm { position: relative; }
+.btn-sm::after, details summary::after { content: ""; position: absolute; inset: min(0px, (100% - var(--tap)) / 2); }
+.app-head { display: flex; align-items: center; gap: var(--space-lg); margin-bottom: var(--space-lg); }
+.app-title h1 { margin: 0 0 var(--space-xs); font-size: var(--text-xl); }
+.cmd-line { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: center; }
+.install-row { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-bottom: var(--space-2xl); }
+.install-row .btn-lg { flex: 1 1 12rem; }
+.section + .section { margin-top: var(--space-2xl); }
+.section h2 { font-size: var(--text-lg); }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-sm) var(--space-lg); margin: 0; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; }
+
+.sheet-body .label { margin: 0; }
+.cli { margin-top: var(--space-lg); }
+.cli summary { cursor: pointer; position: relative; padding-block: var(--space-xs); color: var(--muted); }
+.output { margin: var(--space-sm) 0; padding: var(--space-md); white-space: pre-wrap; word-break: break-word; font-size: var(--text-sm); background: var(--fill); border: var(--border-width) solid var(--line); border-radius: var(--radius-field); }
+
+.site-footer { display: flex; flex-wrap: wrap; gap: var(--space-sm); justify-content: center; padding: var(--space-xl) var(--space-lg) var(--space-2xl); color: var(--muted); font-size: var(--text-sm); text-align: center; }
