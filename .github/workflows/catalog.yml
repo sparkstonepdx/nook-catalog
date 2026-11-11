@@ -4,8 +4,8 @@
 # Daily, so new upstream releases reach servers; each app's update policy decides what happens then.
 # Pull requests build both and deploy a preview of the storefront, but publish nothing.
 #
-# Storefront setup (optional): the NOOK_TOKEN secret (a deploy token) and the NOOK_URL variable (the
-# dashboard's address). NOOK_SITE picks the site name (default: apps).
+# Storefront setup (optional): the NOOK_TOKEN secret, a deploy token from nook 1.6 or later (it carries
+# the server's address; for an older token, also set the NOOK_URL variable). NOOK_SITE picks the site name (default: catalog, so catalog.<default domain>).
 name: catalog
 on:
   push:
@@ -24,10 +24,10 @@ concurrency:
   cancel-in-progress: false
 env:
   PUBLISH: ${{ github.event_name != 'pull_request' }}
-  STOREFRONT: ${{ secrets.NOOK_TOKEN != '' && vars.NOOK_URL != '' }}
+  STOREFRONT: ${{ secrets.NOOK_TOKEN != '' }}
 jobs:
   catalog:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.RUNNER || 'ubuntu-24.04' }}
     steps:
       - uses: actions/checkout@v4
         if: github.event.action != 'closed'
@@ -35,25 +35,27 @@ jobs:
         if: github.event.action != 'closed'
         with:
           go-version: stable
+      # Without a key the catalog isn't published, but the storefront still builds and deploys.
       - name: Check the key is set up
+        id: key
         if: env.PUBLISH == 'true'
         env:
           KEY: ${{ secrets.CATALOG_SIGNING_KEY }}
         run: |
-          [ -s catalog.pub ] || { echo "::error::no catalog.pub: run scripts/setup-catalog-key.sh first"; exit 1; }
-          [ -n "$KEY" ] || { echo "::error::no CATALOG_SIGNING_KEY secret: run scripts/setup-catalog-key.sh first"; exit 1; }
+          if [ -s catalog.pub ] && [ -n "$KEY" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"
+          else echo "::warning::no catalog.pub or CATALOG_SIGNING_KEY: run scripts/setup-catalog-key.sh. Not publishing the catalog."; fi
       - name: Build (finds each app's release, pins its sha256)
         if: github.event.action != 'closed'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: go run github.com/sparkstonepdx/nook/cmd/catalog-build@latest apps > index.json
       - name: Sign
-        if: env.PUBLISH == 'true'
+        if: steps.key.outputs.ok == 'true'
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.CATALOG_SIGNING_KEY }}
         run: go run github.com/sparkstonepdx/nook/cmd/release-sign@latest sign index.json > index.json.sig
       - name: Publish to dist (only when the apps or the key changed)
-        if: env.PUBLISH == 'true'
+        if: steps.key.outputs.ok == 'true'
         run: |
           set -euo pipefail
           base="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/dist"
@@ -87,5 +89,5 @@ jobs:
         with:
           url: ${{ vars.NOOK_URL }}
           token: ${{ secrets.NOOK_TOKEN }}
-          site: ${{ vars.NOOK_SITE || 'apps' }}
+          site: ${{ vars.NOOK_SITE || 'catalog' }}
           dir: site/dist/client
