@@ -35,25 +35,27 @@ jobs:
         if: github.event.action != 'closed'
         with:
           go-version: stable
+      # Without a key the catalog isn't published, but the storefront still builds and deploys.
       - name: Check the key is set up
+        id: key
         if: env.PUBLISH == 'true'
         env:
           KEY: ${{ secrets.CATALOG_SIGNING_KEY }}
         run: |
-          [ -s catalog.pub ] || { echo "::error::no catalog.pub: run scripts/setup-catalog-key.sh first"; exit 1; }
-          [ -n "$KEY" ] || { echo "::error::no CATALOG_SIGNING_KEY secret: run scripts/setup-catalog-key.sh first"; exit 1; }
+          if [ -s catalog.pub ] && [ -n "$KEY" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"
+          else echo "::warning::no catalog.pub or CATALOG_SIGNING_KEY: run scripts/setup-catalog-key.sh. Not publishing the catalog."; fi
       - name: Build (finds each app's release, pins its sha256)
         if: github.event.action != 'closed'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: go run github.com/sparkstonepdx/nook/cmd/catalog-build@latest apps > index.json
       - name: Sign
-        if: env.PUBLISH == 'true'
+        if: steps.key.outputs.ok == 'true'
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.CATALOG_SIGNING_KEY }}
         run: go run github.com/sparkstonepdx/nook/cmd/release-sign@latest sign index.json > index.json.sig
       - name: Publish to dist (only when the apps or the key changed)
-        if: env.PUBLISH == 'true'
+        if: steps.key.outputs.ok == 'true'
         run: |
           set -euo pipefail
           base="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/dist"
