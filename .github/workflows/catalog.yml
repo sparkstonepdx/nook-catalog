@@ -4,8 +4,8 @@
 # Daily, so new upstream releases reach servers; each app's update policy decides what happens then.
 # Pull requests build both and deploy a preview of the storefront, but publish nothing.
 #
-# Storefront setup (optional): the NOOK_TOKEN secret (a deploy token) and the NOOK_URL variable (the
-# dashboard's address). NOOK_SITE picks the site name (default: catalog, so catalog.<default domain>).
+# Storefront setup (optional): the NOOK_TOKEN secret, a deploy token from nook 1.6 or later (it carries
+# the server's address; for an older token, also set the NOOK_URL variable). NOOK_SITE picks the site name (default: catalog, so catalog.<default domain>).
 name: catalog
 on:
   push:
@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: false
 env:
   PUBLISH: ${{ github.event_name != 'pull_request' }}
-  STOREFRONT: ${{ secrets.NOOK_TOKEN != '' && vars.NOOK_URL != '' }}
+  STOREFRONT: ${{ secrets.NOOK_TOKEN != '' }}
 jobs:
   catalog:
     runs-on: ubuntu-24.04
