@@ -34,3 +34,9 @@ Anyone can run a community catalog the same way: copy this repo, swap in your ow
 | `source.github`, `source.assets` (GOARCH to regexp), `source.format` (`tar.gz`, `gz`, `raw`), `source.tag` | Where releases come from |
 
 Try a new entry on a server (`nook-admin store install ID`) before relying on it. The health check and rollback guard updates, not first installs.
+
+## The storefront
+
+`site/` is a small Solid 2 site prerendered from the signed `index.json`: a page for the catalog and one per app, with **Install on nook**. That button asks for your dashboard's address once (only the browser keeps it) and opens the install sheet there, at `/store/install?app=ID`. A community copy links with `&source=owner/repo`, and the dashboard offers to add that catalog first.
+
+The workflow builds it on every run and deploys it to a nook server when the `NOOK_TOKEN` secret and `NOOK_URL` variable are set. `NOOK_SITE` picks the site name, `apps` by default. Pull requests get a preview. Locally: `cd site && npm ci && npm run dev`, or `npm run build` with `INDEX=../index.json` for a built index.
