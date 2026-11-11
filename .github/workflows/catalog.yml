@@ -1,0 +1,53 @@
+# Builds the catalog from apps/*.json with nook's catalog-build, signs it with CATALOG_SIGNING_KEY and
+# publishes index.json, index.json.sig and catalog.pub to the dist branch, where servers fetch them.
+# Daily, so new upstream releases reach servers; each app's update policy decides what happens then.
+name: catalog
+on:
+  push:
+    branches: [main]
+    paths: ["apps/**", "catalog.pub", ".github/workflows/catalog.yml"]
+  schedule:
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: catalog
+  cancel-in-progress: false
+jobs:
+  catalog:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Check the key is set up
+        env:
+          KEY: ${{ secrets.CATALOG_SIGNING_KEY }}
+        run: |
+          [ -s catalog.pub ] || { echo "::error::no catalog.pub: run scripts/setup-catalog-key.sh first"; exit 1; }
+          [ -n "$KEY" ] || { echo "::error::no CATALOG_SIGNING_KEY secret: run scripts/setup-catalog-key.sh first"; exit 1; }
+      - name: Build (finds each app's release, pins its sha256)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: go run github.com/sparkstonepdx/nook/cmd/catalog-build@latest apps > index.json
+      - name: Sign
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.CATALOG_SIGNING_KEY }}
+        run: go run github.com/sparkstonepdx/nook/cmd/release-sign@latest sign index.json > index.json.sig
+      - name: Publish to dist (only when the apps or the key changed)
+        run: |
+          set -euo pipefail
+          base="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/dist"
+          old=$(curl -fsSL "$base/index.json" 2>/dev/null | jq -S '.apps' || echo none)
+          oldkey=$(curl -fsSL "$base/catalog.pub" 2>/dev/null || echo none)
+          if [ "$old" = "$(jq -S '.apps' index.json)" ] && [ "$oldkey" = "$(cat catalog.pub)" ]; then echo "catalog unchanged"; exit 0; fi
+          mkdir dist && cp index.json index.json.sig catalog.pub dist/
+          cd dist
+          git init -q -b dist
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -qm "Catalog $(date -u +%F)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" dist
+          jq -r '.apps[] | "\(.id) \(.version)"' index.json
