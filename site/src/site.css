@@ -16,8 +16,9 @@ body { font-family: var(--font); }
 .row-end .chev { font-size: var(--text-lg); }
 .verified { gap: var(--space-2xs); font-size: var(--text-xs); vertical-align: middle; }
 
-/* an app's mark: its initial on a book-cloth coin, until apps ship art */
+/* an app's mark: its icon, or its initial on a book-cloth coin */
 .app-coin { flex: none; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: var(--radius-field); background: var(--accent); color: var(--accent-ink); font-family: var(--display); font-weight: var(--display-weight); font-size: var(--text-lg); }
+img.app-coin { object-fit: cover; background: none; }
 .app-coin.big { width: 4rem; height: 4rem; font-size: var(--text-xl); border-radius: var(--radius-box); }
 
 .back-row { margin: 0 0 var(--space-md) calc(-1 * var(--space-sm)); }
@@ -28,6 +29,11 @@ body { font-family: var(--font); }
 .cmd-line { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: center; }
 .install-row { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-bottom: var(--space-2xl); }
 .install-row .btn-lg { flex: 1 1 12rem; }
+/* screenshots: a swipeable strip; --ar is each image's own width/height so a narrow screen shrinks it */
+.gallery { list-style: none; margin: 0 calc(-1 * var(--space-md)) var(--space-2xl); padding: 0 var(--space-md) var(--space-sm); display: flex; gap: var(--space-md); overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; }
+.gallery li { flex: none; scroll-snap-align: start; }
+.gallery img { --h: 15rem; display: block; width: min(85vw, calc(var(--h) * var(--ar, 1.6))); height: auto; aspect-ratio: var(--ar, 1.6); border-radius: var(--radius-box); border: var(--border-width) solid var(--line); }
+@media (min-width: 48rem) { .gallery img { --h: 20rem; } }
 .section + .section { margin-top: var(--space-2xl); }
 .section h2 { font-size: var(--text-lg); }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-sm) var(--space-lg); margin: 0; }

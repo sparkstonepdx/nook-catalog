@@ -8,6 +8,10 @@
   "site": "pb",
   "health": "/api/health",
   "memory": "256M",
+  "screenshots": [
+    { "path": "images/pocketbase/records.png", "alt": "The admin dashboard listing records in an orders collection" },
+    { "path": "images/pocketbase/edit-record.png", "alt": "Editing one record in the admin dashboard" }
+  ],
   "binary": "pocketbase",
   "env": [
     { "key": "PB_ADMIN_EMAIL", "desc": "Email for the first superuser, made on the first start", "required": true },

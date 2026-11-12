@@ -8,6 +8,10 @@
   "site": "stats",
   "health": "/status",
   "memory": "128M",
+  "screenshots": [
+    { "path": "images/goatcounter/pages.png", "alt": "A week of page views, one chart per page" },
+    { "path": "images/goatcounter/sources.png", "alt": "Total visits, top referrers, browsers and systems" }
+  ],
   "binary": "goatcounter",
   "env": [
     {
