@@ -1,0 +1,162 @@
+{
+  "generated": "2026-11-12T21:51:25Z",
+  "apps": [
+    {
+      "id": "goatcounter",
+      "name": "GoatCounter",
+      "description": "Privacy-friendly web analytics: page views, referrers and screen sizes without tracking people.",
+      "homepage": "https://www.goatcounter.com",
+      "repo": "https://github.com/arp242/goatcounter",
+      "screenshots": [
+        {
+          "path": "images/goatcounter/pages.png",
+          "sha256": "d7513e2a642f060dcd3e3f1888e52e49590da244a21d75a85c01e473e1b57c70",
+          "alt": "A week of page views, one chart per page",
+          "width": 1280,
+          "height": 800
+        },
+        {
+          "path": "images/goatcounter/sources.png",
+          "sha256": "d813ddc0fc869025361f900d06063795c464ce6a6291e8e64f4afeb4595fe579",
+          "alt": "Total visits, top referrers, browsers and systems",
+          "width": 1280,
+          "height": 800
+        }
+      ],
+      "license": "EUPL-1.2",
+      "version": "v2.7.0",
+      "kind": "web",
+      "site": "stats",
+      "health": "/status",
+      "memory": "128M",
+      "env": [
+        {
+          "key": "GC_ADMIN_EMAIL",
+          "desc": "Your login, made on the first start",
+          "required": true
+        },
+        {
+          "key": "GC_ADMIN_PASSWORD",
+          "desc": "Your password (at least 8 characters)",
+          "secret": true,
+          "required": true
+        }
+      ],
+      "binary": "goatcounter",
+      "files": {
+        "run": "#!/bin/sh\nset -e\n# not GOATCOUNTER_*: GoatCounter reads those as its own flags and refuses names it doesn't know\nmkdir -p \"$HOME/data\"\nDB=\"sqlite+$HOME/data/goatcounter.sqlite3\"\n# make the site and its login before serving: until a site exists, GoatCounter offers anyone a sign-up form\nif [ ! -f \"$HOME/data/goatcounter.sqlite3\" ]; then\n  ./goatcounter db create site -createdb -db \"$DB\" -vhost \"$SITE_HOST\" -user.email \"$GC_ADMIN_EMAIL\" -user.password \"$GC_ADMIN_PASSWORD\"\nfi\nexec ./goatcounter serve -automigrate -listen \"127.0.0.1:$PORT\" -tls http -db \"$DB\"\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/arp242/goatcounter/releases/download/v2.7.0/goatcounter-v2.7.0-linux-amd64.gz",
+          "sha256": "98d221cb9c8ef2bf76d8daa9cca647839f8d8b0bb5bc7400ff9337c5da834511",
+          "format": "gz"
+        },
+        "arm64": {
+          "url": "https://github.com/arp242/goatcounter/releases/download/v2.7.0/goatcounter-v2.7.0-linux-arm64.gz",
+          "sha256": "ff5b2670b858bbe48802dfdc74130b6dcde2de9f5c1229b838eb9132769307dd",
+          "format": "gz"
+        }
+      }
+    },
+    {
+      "id": "ntfy",
+      "name": "ntfy",
+      "description": "Push notifications to phones and desktops over plain HTTP PUT/POST. Also a target for nook's own update alerts.",
+      "homepage": "https://ntfy.sh",
+      "repo": "https://github.com/binwiederhier/ntfy",
+      "license": "Apache-2.0 / GPL-2.0",
+      "version": "v2.37.2",
+      "kind": "web",
+      "site": "ntfy",
+      "health": "/v1/health",
+      "memory": "128M",
+      "env": [
+        {
+          "key": "NTFY_BASE_URL",
+          "desc": "Public URL of this server",
+          "default": "https://{site_host}"
+        },
+        {
+          "key": "NTFY_AUTH_DEFAULT_ACCESS",
+          "desc": "read-write, read-only, write-only or deny-all for anyone without a login",
+          "default": "read-write"
+        }
+      ],
+      "binary": "ntfy",
+      "files": {
+        "run": "#!/bin/sh\nset -e\nmkdir -p \"$HOME/data/ntfy/attachments\"\nexport NTFY_LISTEN_HTTP=\"127.0.0.1:$PORT\"\nexport NTFY_BEHIND_PROXY=true\nexport NTFY_CACHE_FILE=\"$HOME/data/ntfy/cache.db\"\nexport NTFY_AUTH_FILE=\"$HOME/data/ntfy/auth.db\"\nexport NTFY_ATTACHMENT_CACHE_DIR=\"$HOME/data/ntfy/attachments\"\nexec ./ntfy serve\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/binwiederhier/ntfy/releases/download/v2.37.2/ntfy_2.37.2_linux_amd64.tar.gz",
+          "sha256": "e67f53d7fbed529b83faf3993b584110921ef3567b0ac0b033c6910879a4ffd1",
+          "format": "tar.gz"
+        },
+        "arm64": {
+          "url": "https://github.com/binwiederhier/ntfy/releases/download/v2.37.2/ntfy_2.37.2_linux_arm64.tar.gz",
+          "sha256": "d440e696755f2032592ba6456995f7a9f04b8c47d288d2e3d2cffbc3d53831f6",
+          "format": "tar.gz"
+        }
+      }
+    },
+    {
+      "id": "pocketbase",
+      "name": "PocketBase",
+      "description": "A backend in one file: a database with realtime subscriptions, auth, file storage and an admin dashboard.",
+      "homepage": "https://pocketbase.io",
+      "repo": "https://github.com/pocketbase/pocketbase",
+      "screenshots": [
+        {
+          "path": "images/pocketbase/records.png",
+          "sha256": "8571b6b69b61bb799f68125408a0fd7f9152335866353397af6edfe13546013b",
+          "alt": "The admin dashboard listing records in an orders collection",
+          "width": 1280,
+          "height": 800
+        },
+        {
+          "path": "images/pocketbase/edit-record.png",
+          "sha256": "2e891e33c52ad67ed9bfdb35cb5d4b153aa45b16f1272b6cbcf66682d470e78a",
+          "alt": "Editing one record in the admin dashboard",
+          "width": 1280,
+          "height": 800
+        }
+      ],
+      "license": "MIT",
+      "version": "v0.40.6",
+      "kind": "web",
+      "site": "pb",
+      "health": "/api/health",
+      "memory": "256M",
+      "env": [
+        {
+          "key": "PB_ADMIN_EMAIL",
+          "desc": "Email for the first superuser, made on the first start",
+          "required": true
+        },
+        {
+          "key": "PB_ADMIN_PASSWORD",
+          "desc": "Password for the first superuser (at least 8 characters). Change it later in the dashboard.",
+          "secret": true,
+          "required": true
+        }
+      ],
+      "binary": "pocketbase",
+      "files": {
+        "run": "#!/bin/sh\nset -e\n# everything PocketBase keeps lives in data/, which survives updates\nD=\"$HOME/data\"\nmkdir -p \"$D/pb_data\" \"$D/pb_public\" \"$D/pb_hooks\" \"$D/pb_migrations\"\nflags=\"--dir=$D/pb_data --publicDir=$D/pb_public --hooksDir=$D/pb_hooks --migrationsDir=$D/pb_migrations\"\nif [ ! -f \"$D/pb_data/.superuser-made\" ]; then\n  ./pocketbase superuser upsert \"$PB_ADMIN_EMAIL\" \"$PB_ADMIN_PASSWORD\" $flags\n  touch \"$D/pb_data/.superuser-made\"\nfi\nexec ./pocketbase serve --http=\"127.0.0.1:$PORT\" $flags\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/pocketbase/pocketbase/releases/download/v0.40.6/pocketbase_0.40.6_linux_amd64.zip",
+          "sha256": "0e1f609158ed945f809f8a02ae012aa0427129c66ebb63c1aee76f2c0309373f",
+          "format": "zip"
+        },
+        "arm64": {
+          "url": "https://github.com/pocketbase/pocketbase/releases/download/v0.40.6/pocketbase_0.40.6_linux_arm64.zip",
+          "sha256": "d22c66ceb67ca92b7d767f36d826e848a276bcfa3c197ead20bf87c42208984f",
+          "format": "zip"
+        }
+      }
+    }
+  ]
+}
