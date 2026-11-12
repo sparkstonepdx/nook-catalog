@@ -31,7 +31,7 @@ Anyone can run a community catalog the same way: copy this repo, swap in your ow
 | `needs` | Shared services, bound automatically when exactly one provider is ready |
 | `health` | A path that answers under 400 when the app is up; an update that fails it rolls back |
 | `memory`, `cpu` | The app's limits |
-| `source.github`, `source.assets` (GOARCH to regexp), `source.format` (`tar.gz`, `gz`, `raw`), `source.tag` | Where releases come from |
+| `source.github`, `source.assets` (GOARCH to regexp), `source.format` (`tar.gz`, `zip` (nook 1.7+), `gz`, `raw`), `source.tag` | Where releases come from |
 
 Try a new entry on a server (`nook-admin store install ID`) before relying on it. The health check and rollback guard updates, not first installs.
 
