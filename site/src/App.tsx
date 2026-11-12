@@ -1,5 +1,5 @@
 import { For, Show, createSignal, onCleanup, onSettled } from "solid-js";
-import { apps, appPath, generated, installLink, official, repo, type App as CatalogApp } from "./catalog";
+import { apps, appPath, generated, imageURL, installLink, official, repo, type App as CatalogApp } from "./catalog";
 
 const NOOK = "https://github.com/sparkstonepdx/nook";
 const KEY = "nook-dashboard";
@@ -39,7 +39,7 @@ function Home() {
         <For each={apps}>
           {(a) => (
             <li><a class="row" href={appPath(a.id)}>
-              <span class="app-coin" aria-hidden="true">{a.name.slice(0, 1)}</span>
+              <AppIcon app={a} />
               <span class="row-main"><span>{a.name} <Verified /></span><small>{a.description}</small></span>
               <span class="row-end"><span class="mono">{a.version}</span><span class="chev">›</span></span>
             </a></li>
@@ -48,6 +48,14 @@ function Home() {
       </ul>
       <p class="hint">{apps.length} {apps.length === 1 ? "app" : "apps"}, checked {new Date(generated).toISOString().slice(0, 10)}.</p>
     </>
+  );
+}
+
+function AppIcon(props: { app: CatalogApp; big?: boolean }) {
+  return (
+    <Show when={props.app.icon} fallback={<span class={["app-coin", { big: props.big }]} aria-hidden="true">{props.app.name.slice(0, 1)}</span>}>
+      {(i) => <img class={["app-coin", { big: props.big }]} src={imageURL(i())} alt="" width={props.big ? 64 : 44} height={props.big ? 64 : 44} />}
+    </Show>
   );
 }
 
@@ -63,7 +71,7 @@ function AppPage(props: { app: CatalogApp }) {
     <>
       <div class="back-row"><a class="btn btn-ghost btn-sm back" href="/">‹ All apps</a></div>
       <section class="app-head">
-        <span class="app-coin big" aria-hidden="true">{a().name.slice(0, 1)}</span>
+        <AppIcon app={a()} big />
         <div class="app-title">
           <h1>{a().name}</h1>
           <p class="cmd-line"><Verified /> <span class="mono text-secondary">{a().version}</span></p>
@@ -72,8 +80,15 @@ function AppPage(props: { app: CatalogApp }) {
       <p class="lede">{a().description}</p>
       <div class="install-row">
         <button class="btn btn-lg" onClick={() => setOpen(true)}>Install on nook</button>
-        <Show when={a().homepage}><a class="btn btn-secondary btn-lg" href={a().homepage}>Homepage</a></Show>
       </div>
+
+      <Show when={a().screenshots?.length}>
+        <ul class="gallery" aria-label="Screenshots">
+          <For each={a().screenshots}>
+            {(i) => <li><a href={imageURL(i)}><img src={imageURL(i)} alt={i.alt ?? ""} width={i.width} height={i.height} style={i.width && i.height ? { "--ar": `${i.width} / ${i.height}` } : undefined} loading="lazy" /></a></li>}
+          </For>
+        </ul>
+      </Show>
 
       <section class="section">
         <h2>Details</h2>
@@ -93,6 +108,16 @@ function AppPage(props: { app: CatalogApp }) {
             <For each={a().env}>
               {(f) => <li class="row"><span class="row-main"><span class="mono">{f.key}</span><small>{f.desc}<Show when={f.default}> · default <span class="mono">{f.default}</span></Show></small></span></li>}
             </For>
+          </ul>
+        </section>
+      </Show>
+
+      <Show when={a().homepage || a().repo}>
+        <section class="section">
+          <h2>The original</h2>
+          <ul class="list">
+            <Show when={a().homepage}><li><a class="row" href={a().homepage}><span class="row-main"><span>Homepage</span><small class="mono">{a().homepage!.replace(/^https:\/\//, "")}</small></span><span class="row-end"><span class="chev">↗</span></span></a></li></Show>
+            <Show when={a().repo}><li><a class="row" href={a().repo}><span class="row-main"><span>Source code</span><small class="mono">{a().repo!.replace(/^https:\/\//, "")}</small></span><span class="row-end"><span class="chev">↗</span></span></a></li></Show>
           </ul>
         </section>
       </Show>

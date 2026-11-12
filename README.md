@@ -7,8 +7,8 @@ Anyone can run a community catalog the same way: copy this repo, swap in your ow
 ## How it works
 
 1. One file per app in `apps/`.
-2. The `catalog` workflow, daily and on every push, runs nook's `catalog-build`. For each app it finds the release on GitHub (the latest, or `source.tag`), picks the asset for each architecture, downloads it and pins its sha256.
-3. It signs `index.json` with this catalog's key and publishes `index.json`, `index.json.sig` and `catalog.pub` to the `dist` branch.
+2. The `catalog` workflow, daily and on every push, runs nook's `catalog-build`. For each app it finds the release on GitHub (the latest, or `source.tag`), picks the asset for each architecture, downloads it and pins its sha256. It pins each image in `images/` the same way.
+3. It signs `index.json` with this catalog's key and publishes `index.json`, `index.json.sig`, `catalog.pub` and `images/` to the `dist` branch.
 4. A server fetches those from `https://raw.githubusercontent.com/OWNER/REPO/dist/` and checks the signature. A community catalog's key is pinned when it's added, so a later key change is refused. The official key is compiled into nook.
 5. On install, the server checks each download against its pinned hash and takes the `binary` out in memory. It deploys it as a normal site with `files` and a generated `nook.json`, running as the app's own user. Root never unpacks the archive onto disk.
 
@@ -23,6 +23,9 @@ Anyone can run a community catalog the same way: copy this repo, swap in your ow
 | Field | |
 |---|---|
 | `id`, `name`, `description`, `homepage`, `license` | Shown in the Store |
+| `screenshots` | Up to 6 of `{"path": "images/<id>/<file>.png", "alt": "what it shows"}`, PNG or JPEG under 1 MB. Alt text is required. 1280 × 800 reads well on phones and desktops |
+| `icon` | `{"path": "images/<id>/icon.png"}`, square. Without one the app shows its initial |
+| `repo` | The original project's source; defaults to `source.github` |
 | `kind` | `web` (the default; gets `site`'s hostname), `service`, or `cron` (with `schedule`) |
 | `site` | The default site name: `ntfy` becomes ntfy.&lt;default domain&gt; |
 | `binary` | The executable's file name inside the release asset |

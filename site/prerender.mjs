@@ -1,5 +1,5 @@
 // Writes every page's HTML: renders each path with the server bundle into the client build's index.html.
-import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { render, paths, pages } from "./dist/server/entry-server.js";
 
@@ -20,3 +20,5 @@ for (const path of paths) {
   console.log("wrote", file);
 }
 rmSync("dist/server", { recursive: true, force: true });
+// icons and screenshots, at the same paths as in the repo
+if (existsSync("../images")) cpSync("../images", join(out, "images"), { recursive: true });

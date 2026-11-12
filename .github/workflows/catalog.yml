@@ -10,7 +10,7 @@ name: catalog
 on:
   push:
     branches: [main]
-    paths: ["apps/**", "site/**", "catalog.pub", ".github/workflows/catalog.yml"]
+    paths: ["apps/**", "images/**", "site/**", "catalog.pub", ".github/workflows/catalog.yml"]
   pull_request:
     types: [opened, synchronize, reopened, closed]
   schedule:
@@ -62,7 +62,7 @@ jobs:
           old=$(curl -fsSL "$base/index.json" 2>/dev/null | jq -S '.apps' || echo none)
           oldkey=$(curl -fsSL "$base/catalog.pub" 2>/dev/null || echo none)
           if [ "$old" = "$(jq -S '.apps' index.json)" ] && [ "$oldkey" = "$(cat catalog.pub)" ]; then echo "catalog unchanged"; exit 0; fi
-          mkdir dist && cp index.json index.json.sig catalog.pub dist/
+          mkdir dist && cp index.json index.json.sig catalog.pub dist/ && if [ -d images ]; then cp -r images dist/; fi
           cd dist
           git init -q -b dist
           git config user.name "github-actions[bot]"
