@@ -1,0 +1,36 @@
+{
+  "id": "goatcounter",
+  "name": "GoatCounter",
+  "description": "Privacy-friendly web analytics: page views, referrers and screen sizes without tracking people.",
+  "homepage": "https://www.goatcounter.com",
+  "license": "EUPL-1.2",
+  "kind": "web",
+  "site": "stats",
+  "health": "/status",
+  "memory": "128M",
+  "binary": "goatcounter",
+  "env": [
+    {
+      "key": "GC_ADMIN_EMAIL",
+      "desc": "Your login, made on the first start",
+      "required": true
+    },
+    {
+      "key": "GC_ADMIN_PASSWORD",
+      "desc": "Your password (at least 8 characters)",
+      "secret": true,
+      "required": true
+    }
+  ],
+  "files": {
+    "run": "#!/bin/sh\nset -e\n# not GOATCOUNTER_*: GoatCounter reads those as its own flags and refuses names it doesn't know\nmkdir -p \"$HOME/data\"\nDB=\"sqlite+$HOME/data/goatcounter.sqlite3\"\n# make the site and its login before serving: until a site exists, GoatCounter offers anyone a sign-up form\nif [ ! -f \"$HOME/data/goatcounter.sqlite3\" ]; then\n  ./goatcounter db create site -createdb -db \"$DB\" -vhost \"$SITE_HOST\" -user.email \"$GC_ADMIN_EMAIL\" -user.password \"$GC_ADMIN_PASSWORD\"\nfi\nexec ./goatcounter serve -automigrate -listen \"127.0.0.1:$PORT\" -tls http -db \"$DB\"\n"
+  },
+  "source": {
+    "github": "arp242/goatcounter",
+    "assets": {
+      "amd64": "^goatcounter-v[0-9.]+-linux-amd64\\.gz$",
+      "arm64": "^goatcounter-v[0-9.]+-linux-arm64\\.gz$"
+    },
+    "format": "gz"
+  }
+}

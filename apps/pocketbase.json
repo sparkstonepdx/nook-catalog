@@ -1,0 +1,24 @@
+{
+  "id": "pocketbase",
+  "name": "PocketBase",
+  "description": "A backend in one file: a database with realtime subscriptions, auth, file storage and an admin dashboard.",
+  "homepage": "https://pocketbase.io",
+  "license": "MIT",
+  "kind": "web",
+  "site": "pb",
+  "health": "/api/health",
+  "memory": "256M",
+  "binary": "pocketbase",
+  "env": [
+    { "key": "PB_ADMIN_EMAIL", "desc": "Email for the first superuser, made on the first start", "required": true },
+    { "key": "PB_ADMIN_PASSWORD", "desc": "Password for the first superuser (at least 8 characters). Change it later in the dashboard.", "secret": true, "required": true }
+  ],
+  "files": {
+    "run": "#!/bin/sh\nset -e\n# everything PocketBase keeps lives in data/, which survives updates\nD=\"$HOME/data\"\nmkdir -p \"$D/pb_data\" \"$D/pb_public\" \"$D/pb_hooks\" \"$D/pb_migrations\"\nflags=\"--dir=$D/pb_data --publicDir=$D/pb_public --hooksDir=$D/pb_hooks --migrationsDir=$D/pb_migrations\"\nif [ ! -f \"$D/pb_data/.superuser-made\" ]; then\n  ./pocketbase superuser upsert \"$PB_ADMIN_EMAIL\" \"$PB_ADMIN_PASSWORD\" $flags\n  touch \"$D/pb_data/.superuser-made\"\nfi\nexec ./pocketbase serve --http=\"127.0.0.1:$PORT\" $flags\n"
+  },
+  "source": {
+    "github": "pocketbase/pocketbase",
+    "assets": { "amd64": "^pocketbase_[0-9.]+_linux_amd64\\.zip$", "arm64": "^pocketbase_[0-9.]+_linux_arm64\\.zip$" },
+    "format": "zip"
+  }
+}
