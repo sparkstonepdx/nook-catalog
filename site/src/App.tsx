@@ -11,7 +11,10 @@ export default function App(props: { path: string }) {
   return (
     <>
       <header class="navbar navbar-flush top-bar">
-        <a href="/" class="brand">nook <span class="brand-sub">apps</span></a>
+        <a href="/" class="brand">
+          <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 60V30a20 20 0 0 1 40 0v30Z M19 32a5 5 0 0 1 5-5h16a5 5 0 0 1 5 5v16a5 5 0 0 1-5 5H24a5 5 0 0 1-5-5Z" fill="currentColor" fill-rule="evenodd" /><rect x="25.5" y="33.5" width="13" height="13" rx="3" fill="#e0a43a" /></svg>
+          nook <span class="brand-sub">apps</span>
+        </a>
         <a class="btn btn-ghost btn-sm" href={NOOK}>Get nook</a>
       </header>
       <main class="container page">
