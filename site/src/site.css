@@ -5,6 +5,8 @@ body { font-family: var(--font); }
 .mono { font-size: 0.9em; }
 .top-bar { gap: var(--space-md); padding-block: var(--space-xs); padding-top: max(var(--space-xs), env(safe-area-inset-top, 0px)); }
 .brand { font-family: var(--display); font-weight: var(--display-weight); font-size: var(--text-lg); color: var(--ink); text-decoration: none; margin-inline-end: auto; }
+.brand { display: inline-flex; align-items: center; gap: 0.3em; }
+.brand-mark { width: 1.15em; height: 1.15em; color: var(--accent-text); transform: translateY(-0.04em); }
 .brand-sub { color: var(--muted); font-weight: 500; }
 .page { padding-top: var(--space-xl); padding-bottom: var(--space-3xl); }
 .hero { margin-bottom: var(--space-xl); }
