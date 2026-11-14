@@ -1,0 +1,54 @@
+# First-party apps whose source lives here, in packages/<name>/. Tests every package on pull requests. On main, a
+# package whose VERSION has no release yet is built for linux amd64 and arm64 and released as <name>-<version>
+# (push-v0.1.0); then the catalog workflow runs, and catalog-build finds it by its tag prefix ("source": {"github":
+# "sparkstonepdx/nook-catalog", "tagPrefix": "push-"}).
+name: packages
+on:
+  push:
+    branches: [main]
+    paths: ["packages/**", ".github/workflows/packages.yml"]
+  pull_request:
+    paths: ["packages/**", ".github/workflows/packages.yml"]
+permissions:
+  contents: write
+  actions: write
+jobs:
+  packages:
+    runs-on: ${{ vars.RUNNER || 'ubuntu-24.04' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.24" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Test
+        run: |
+          set -euo pipefail
+          for d in packages/*/; do
+            echo "::group::${d}"
+            (cd "$d" && test -z "$(gofmt -l .)" && go vet ./... && go test ./...)
+            if [ -f "$d/scripts/interop.mjs" ]; then
+              (cd "$d/scripts" && npm i --no-audit --no-fund --no-save http_ece@1 web-push@3 >/dev/null && node interop.mjs)
+            fi
+            echo "::endgroup::"
+          done
+      - name: Release new versions
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          released=0
+          for d in packages/*/; do
+            name=$(basename "$d"); version=$(tr -d '[:space:]' < "$d/VERSION"); tag="$name-$version"
+            if gh release view "$tag" >/dev/null 2>&1; then echo "$tag: already released"; continue; fi
+            mkdir -p "dist/$name"
+            for arch in amd64 arm64; do
+              (cd "$d" && CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w" -o "$GITHUB_WORKSPACE/dist/$name/$name" .)
+              tar -C "dist/$name" -czf "dist/${name}_${version}_linux_${arch}.tar.gz" "$name"
+            done
+            (cd dist && sha256sum "${name}_${version}"_*.tar.gz > "${name}_${version}_checksums.txt")
+            gh release create "$tag" dist/"${name}_${version}"_* --target "$GITHUB_SHA" --title "$name $version" --notes "packages/$name at $GITHUB_SHA"
+            released=1
+          done
+          if [ "$released" = 1 ]; then gh workflow run catalog.yml --ref main; fi
