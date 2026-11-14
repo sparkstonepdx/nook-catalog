@@ -35,8 +35,18 @@ Anyone can run a community catalog the same way: copy this repo, swap in your ow
 | `health` | A path that answers under 400 when the app is up; an update that fails it rolls back |
 | `memory`, `cpu` | The app's limits |
 | `source.github`, `source.assets` (GOARCH to regexp), `source.format` (`tar.gz`, `zip` (nook 1.7+), `gz`, `raw`), `source.tag` | Where releases come from |
+| `source.tagPrefix` | For a repo that releases several apps: the newest release whose tag starts with it (`push-` picks `push-v0.1.0`). The version is the tag without the prefix. nook 1.20.1+ `catalog-build` |
+| `auth`, `open` | `"auth": "nook-token"` lets in only requests with a deploy token from the server; `open` lists paths that skip it (nook 1.20+) |
 
 Try a new entry on a server (`nook-admin store install ID`) before relying on it. The health check and rollback guard updates, not first installs.
+
+## Packages
+
+First-party apps can live here, in `packages/<name>/`, instead of a repo of their own. The `packages` workflow tests each one on pull requests. On main, when a package's `VERSION` has no release yet, it builds linux amd64 and arm64, releases them as `<name>-<version>` (for example `push-v0.1.0`), and runs the catalog workflow. The app's entry points at this repo with `"tagPrefix": "<name>-"`. To release, change `VERSION` in a pull request.
+
+| Package | |
+|---|---|
+| [`push`](packages/push) | Web Push for every app on the server: VAPID keys per app from CI with `NOOK_TOKEN`, send handles for browsers, scheduled pushes |
 
 ## The storefront
 
