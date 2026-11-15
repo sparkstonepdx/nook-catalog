@@ -225,3 +225,64 @@ func TestUserListAndPage(t *testing.T) {
 		t.Fatalf("page with a token: %d", w.Code)
 	}
 }
+
+func TestPublic(t *testing.T) {
+	s := newTest(t)
+	w := do(s, "PUT", "/v1/files/android/wren-0.0.5.apk?alias=wren.apk&public=1", "wren", "APK5")
+	var out map[string]any
+	json.Unmarshal(w.Body.Bytes(), &out)
+	if w.Code != 201 || out["publicUrl"] != "https://files.example.com/p/wren/android/wren-0.0.5.apk" || out["aliasPublicUrl"] != "https://files.example.com/p/wren/android/wren.apk" {
+		t.Fatalf("public upload: %d %s", w.Code, w.Body)
+	}
+	if w := do(s, "GET", "/p/wren/android/wren.apk", "", ""); w.Code != 200 || w.Body.String() != "APK5" || w.Header().Get("Cache-Control") != "public, max-age=300" {
+		t.Fatalf("public download: %d %v", w.Code, w.Header())
+	}
+	// re-uploading the latest without ?public keeps it public; the new version file is private
+	do(s, "PUT", "/v1/files/android/wren-0.0.6.apk?alias=wren.apk", "wren", "APK6")
+	if w := do(s, "GET", "/p/wren/android/wren.apk", "", ""); w.Code != 200 || w.Body.String() != "APK6" {
+		t.Fatalf("alias should stay public with the new file: %d %s", w.Code, w.Body)
+	}
+	if w := do(s, "GET", "/p/wren/android/wren-0.0.6.apk", "", ""); w.Code != 404 {
+		t.Fatalf("a new path is private unless asked: %d", w.Code)
+	}
+	// private files and made-up paths look the same
+	do(s, "PUT", "/v1/files/secret.txt", "wren", "shh")
+	for _, p := range []string{"/p/wren/secret.txt", "/p/wren/nope.txt", "/p/wren/../wren/secret.txt", "/p/wren"} {
+		if w := do(s, "GET", p, "", ""); w.Code != 404 {
+			t.Errorf("%s: %d", p, w.Code)
+		}
+	}
+	// a token toggles its own app's files; a login any app's
+	r := httptest.NewRequest("POST", "/v1/public", strings.NewReader(`{"path":"android/wren.apk","public":false}`))
+	r.Header.Set("X-Nook-App", "wren")
+	r.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, r)
+	if w.Code != 200 || do(s, "GET", "/p/wren/android/wren.apk", "", "").Code != 404 {
+		t.Fatalf("made private: %d %s", w.Code, w.Body)
+	}
+	r = httptest.NewRequest("POST", "/v1/public", strings.NewReader(`{"app":"wren","path":"secret.txt","public":true}`))
+	r.Header.Set("X-Nook-App", "kinlog")
+	r.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, r)
+	if w.Code != 403 {
+		t.Fatalf("another app's token: %d", w.Code)
+	}
+	if w := doUser(s, "POST", "/v1/public", "adam", `{"app":"wren","path":"secret.txt","public":true}`); w.Code != 200 || !strings.Contains(w.Body.String(), `"publicUrl":"https://files.example.com/p/wren/secret.txt"`) {
+		t.Fatalf("a login making it public: %d %s", w.Code, w.Body)
+	}
+	if w := doUser(s, "POST", "/v1/public", "adam", `{"app":"wren","path":"secret.txt"}`); w.Code != 400 {
+		t.Fatalf("no public field: %d", w.Code)
+	}
+	// the list says which are public
+	if w := doUser(s, "GET", "/v1/files?app=wren", "adam", ""); !strings.Contains(w.Body.String(), `"publicUrl":"https://files.example.com/p/wren/secret.txt"`) {
+		t.Fatalf("list: %s", w.Body)
+	}
+	// deleting takes the public link with it
+	do(s, "DELETE", "/v1/files/secret.txt", "wren", "")
+	do(s, "PUT", "/v1/files/secret.txt", "wren", "new")
+	if w := do(s, "GET", "/p/wren/secret.txt", "", ""); w.Code != 404 {
+		t.Fatalf("a deleted then re-uploaded file came back public: %d", w.Code)
+	}
+}
