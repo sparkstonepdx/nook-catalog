@@ -104,3 +104,27 @@ func TestNextWraps(t *testing.T) {
 		t.Fatalf("after b wraps to a: %+v", n)
 	}
 }
+
+// A site without screenshots shows its share image; one on another host is dropped.
+func TestShareImageAsHero(t *testing.T) {
+	srv := fakeNook(t, []map[string]any{
+		{"host": "a.example.com", "url": "https://a.example.com/", "name": "A", "image": "https://a.example.com/og.png"},
+		{"host": "b.example.com", "url": "https://b.example.com/", "name": "B", "image": "https://cdn.example/og.png"},
+	})
+	d := &dir{source: srv.URL + "/api/v1/directory", client: srv.Client(), icons: map[string]icon{}}
+	d.refresh()
+	if d.sites[0].Image != "https://a.example.com/og.png" || d.sites[1].Image != "" {
+		t.Fatalf("images: %q %q", d.sites[0].Image, d.sites[1].Image)
+	}
+	h := handler(d, "Apps", "")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("GET", "/a/a.example.com", nil))
+	if !strings.Contains(w.Body.String(), `src="https://a.example.com/og.png"`) || !strings.Contains(w.Body.String(), `<figure class="banner">`) {
+		t.Fatalf("hero (a banner, not a phone):\n%s", w.Body)
+	}
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("GET", "/", nil))
+	if !strings.Contains(w.Body.String(), `class="shot share" src="https://a.example.com/og.png"`) {
+		t.Fatalf("card:\n%s", w.Body)
+	}
+}
