@@ -1,6 +1,6 @@
 # directory
 
-A public page of the apps a nook server lists: a card per app with its own icon, name, description and colors, a page per app with its screenshots and a big **Open**, and itself installable, so it doubles as a home-screen launcher. No JavaScript.
+A public page of the apps a nook server lists: a card per app with its first screenshot (or its icon on its own colors), name, description and an **Open** in its color, a page per app with that screenshot in a phone frame, the rest of its screenshots and a big **Open**, and itself installable, so it doubles as a home-screen launcher. No JavaScript.
 
 ## Listing apps
 
@@ -10,10 +10,10 @@ On the nook dashboard, turn on **List in directory** on a site's sheet (or run `
 |---|---|
 | `name`, `short_name` | the card and its page (`short_name` on the Open button) |
 | `description` | under the name |
-| `theme_color` | the Open button; the text on it turns dark on a light color |
-| `background_color` | behind the icon |
+| `theme_color` | the Open buttons; the text on them is near-black or white, whichever reads better |
+| `background_color` | behind the icon, and behind the card's picture |
 | `icons` | the one nearest 192px that isn't maskable-only |
-| `screenshots` | a scrolling row on the app's page (`form_factor` narrow or wide) |
+| `screenshots` | the first `narrow` one (else the first) is the card's picture and the phone frame on the app's page; the rest scroll in a row below it |
 
 A site without a manifest still shows, with its page title and initial.
 

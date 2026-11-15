@@ -54,7 +54,7 @@ func TestIconOnlyForListed(t *testing.T) {
 }
 
 func TestOnColor(t *testing.T) {
-	for c, want := range map[string]string{"#ffd166": "#111", "#fff": "#111", "#3d6b4f": "#fff", "#8a3ffc": "#fff", "oklch(0.9 0.1 90)": "#fff"} {
+	for c, want := range map[string]string{"#ffd166": "#111", "#fff": "#111", "#3d6b4f": "#fff", "#8a3ffc": "#fff", "#e9738d": "#111", "#2e5fc8": "#fff", "oklch(0.9 0.1 90)": "#fff"} {
 		if got := string(onColor(c)); got != want {
 			t.Errorf("%s: %s, want %s", c, got, want)
 		}
@@ -79,8 +79,28 @@ func TestPageEscapes(t *testing.T) {
 		}
 	}
 	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("GET", "/a/a.example.com", nil))
+	if strings.Contains(w.Body.String(), `class="next"`) && strings.Contains(w.Body.String(), "<span class=\"muted small\">Next</span>") {
+		t.Fatal("an app that's the only one listed has no Next")
+	}
+	w = httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest("GET", "/a/not-listed.example.com", nil))
 	if w.Code != 404 {
 		t.Fatalf("unlisted app page: %d", w.Code)
+	}
+}
+
+func TestNextWraps(t *testing.T) {
+	srv := fakeNook(t, []map[string]any{
+		{"host": "a.example.com", "url": "https://a.example.com/", "name": "A"},
+		{"host": "b.example.com", "url": "https://b.example.com/", "name": "B"},
+	})
+	d := &dir{source: srv.URL + "/api/v1/directory", client: srv.Client(), icons: map[string]icon{}}
+	d.refresh()
+	if _, n, _ := d.find("a.example.com"); n == nil || n.Host != "b.example.com" {
+		t.Fatalf("after a: %+v", n)
+	}
+	if _, n, _ := d.find("b.example.com"); n == nil || n.Host != "a.example.com" {
+		t.Fatalf("after b wraps to a: %+v", n)
 	}
 }
