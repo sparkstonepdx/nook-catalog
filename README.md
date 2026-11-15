@@ -46,6 +46,7 @@ First-party apps can live here, in `packages/<name>/`, instead of a repo of thei
 
 | Package | |
 |---|---|
+| [`files`](packages/files) | Public file storage per app (APKs, installers): upload with `NOOK_TOKEN`, download from a plain link |
 | [`push`](packages/push) | Web Push for every app on the server: VAPID keys per app from CI with `NOOK_TOKEN`, send handles for browsers, scheduled pushes |
 
 ## The storefront
