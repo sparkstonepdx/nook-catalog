@@ -1,7 +1,7 @@
 {
   "id": "files",
   "name": "Files",
-  "description": "Public file storage for your apps: CI uploads APKs, installers and release downloads with NOOK_TOKEN, anyone downloads from a plain link that resumes.",
+  "description": "File storage for your apps: CI uploads APKs, installers and release downloads with NOOK_TOKEN, people with a nook login download, and share links let anyone else in until they expire.",
   "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/files",
   "license": "MIT",
   "kind": "web",
@@ -10,10 +10,10 @@
   "memory": "128M",
   "binary": "files",
   "auth": "nook-token",
-  "open": ["/f/*", "/health"],
+  "open": ["/s/*", "/health"],
   "env": [
     { "key": "FILES_MAX_MB", "desc": "Largest upload in MB, up to 2047", "default": "2047" },
-    { "key": "FILES_URL", "desc": "Public URL of this site, for the links uploads return", "default": "https://{site_host}" }
+    { "key": "FILES_URL", "desc": "Public URL of this site, for the links uploads and shares return", "default": "https://{site_host}" }
   ],
   "files": { "run": "#!/bin/sh\nexec ./files\n" },
   "source": {

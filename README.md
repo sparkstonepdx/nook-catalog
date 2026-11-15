@@ -48,7 +48,7 @@ First-party apps can live here, in `packages/<name>/`, instead of a repo of thei
 | Package | |
 |---|---|
 | [`registry`](packages/registry) | A private npm registry: your scope's private packages with `NOOK_TOKEN`, its public ones passed through from npmjs.org |
-| [`files`](packages/files) | Public file storage per app (APKs, installers): upload with `NOOK_TOKEN`, download from a plain link |
+| [`files`](packages/files) | File storage per app (APKs, installers): upload with `NOOK_TOKEN`, download with a nook login, share a link that expires |
 | [`directory`](packages/directory) | A public page of the apps you list on the dashboard, from their own manifests; installable as a launcher |
 | [`runners`](packages/runners) | GitHub Actions runners for an organization or a repository, each for one job, in nook's sandbox |
 | [`push`](packages/push) | Web Push for every app on the server: VAPID keys per app from CI with `NOOK_TOKEN`, send handles for browsers, scheduled pushes |
