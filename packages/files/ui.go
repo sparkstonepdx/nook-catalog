@@ -89,6 +89,25 @@ async function loadLinks() {
   document.getElementById("links").hidden = shares.length === 0;
 }
 
+function publicControls(f) {
+  const box = el("input", { type: "checkbox", role: "switch", checked: !!f.public });
+  const out = el("div", { className: "out" });
+  const show = (url) => out.replaceChildren(...(url ? [copyRow(url), el("small", { textContent: "Anyone can download it here, for as long as it stays public." })] : []));
+  show(f.publicUrl);
+  box.addEventListener("change", async () => {
+    box.disabled = true;
+    try {
+      const r = await api("POST", "/v1/public", { app: f.app, path: f.path, public: box.checked });
+      show(r.publicUrl);
+    } catch (e) {
+      box.checked = !box.checked;
+      out.replaceChildren(el("small", { className: "error", textContent: e.message }));
+    }
+    box.disabled = false;
+  });
+  return [el("label", { className: "switch" }, box, el("span", { textContent: "Public" })), out];
+}
+
 function shareControls(f) {
   const pick = el("select", { className: "input", ariaLabel: "How long the link lasts" }, ...durations.map(([label, h]) => el("option", { value: h, textContent: label, selected: h === 168 })));
   const go = el("button", { className: "btn", textContent: "Share" });
@@ -116,7 +135,7 @@ async function loadFiles() {
     el("h3", { textContent: app }),
     el("ul", { className: "list" }, ...fs.map((f) => el("li", { className: "row" },
       el("div", { className: "row-main" }, el("a", { href: "/f/" + f.app + "/" + f.path, textContent: f.path }), el("small", { textContent: size(f.size) + " · " + when(f.modified) })),
-      ...shareControls(f)))))));
+      ...shareControls(f), ...publicControls(f)))))));
 }
 
 loadFiles().catch((e) => document.getElementById("apps").replaceChildren(el("p", { className: "error", textContent: e.message })));
@@ -141,5 +160,7 @@ small, .hint { color: var(--muted); font-size: 13px; }
 .input, .btn { font: inherit; font-size: 14px; min-height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
 .btn { cursor: pointer; font-weight: 600; } .btn:disabled { opacity: .5; } .btn.subtle { justify-self: start; font-weight: 500; color: var(--muted); }
 .error { color: var(--error); }
-@media (min-width: 640px) { .row { grid-template-columns: 1fr auto; align-items: center; } .out, .copy, .row .btn.subtle { grid-column: 1 / -1; } }
+.switch { display: inline-flex; gap: 8px; align-items: center; font-size: 14px; justify-self: start; }
+.switch input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+@media (min-width: 640px) { .row { grid-template-columns: 1fr auto; align-items: center; } .out, .copy, .row .btn.subtle, .switch { grid-column: 1 / -1; } }
 `

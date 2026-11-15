@@ -48,13 +48,16 @@ type server struct {
 }
 
 type info struct {
-	App      string    `json:"app,omitempty"`
-	Path     string    `json:"path"`
-	URL      string    `json:"url"`
-	Size     int64     `json:"size"`
-	SHA256   string    `json:"sha256"`
-	Type     string    `json:"type"`
-	Modified time.Time `json:"modified"`
+	App       string    `json:"app,omitempty"`
+	Path      string    `json:"path"`
+	URL       string    `json:"url"`
+	Size      int64     `json:"size"`
+	SHA256    string    `json:"sha256"`
+	Type      string    `json:"type"`
+	Modified  time.Time `json:"modified"`
+	Public    bool      `json:"public,omitempty"`
+	PublicURL string    `json:"publicUrl,omitempty"` // /p/APP/PATH, for anyone, while Public
+
 }
 
 func env(k, def string) string {
@@ -106,6 +109,17 @@ func fail(w http.ResponseWriter, status int, msg string) {
 
 func (s *server) url(app, rel string) string { return s.public + "/f/" + app + "/" + rel }
 
+func (s *server) publicURL(app, rel string) string { return s.public + "/p/" + app + "/" + rel }
+
+// urls fills in a file's links: its own, and its public one while it's public.
+func (s *server) urls(app, rel string, in info) info {
+	in.URL, in.PublicURL = s.url(app, rel), ""
+	if in.Public {
+		in.PublicURL = s.publicURL(app, rel)
+	}
+	return in
+}
+
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch p := r.URL.Path; {
 	case p == "/health":
@@ -118,6 +132,10 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(204)
 	case strings.HasPrefix(p, "/f/") && (r.Method == "GET" || r.Method == "HEAD"):
 		s.download(w, r, strings.TrimPrefix(p, "/f/"))
+	case strings.HasPrefix(p, "/p/") && (r.Method == "GET" || r.Method == "HEAD"):
+		s.publicFile(w, r, strings.TrimPrefix(p, "/p/"))
+	case p == "/v1/public" && r.Method == "POST":
+		s.withCaller(w, r, s.setPublic)
 	case strings.HasPrefix(p, "/s/") && (r.Method == "GET" || r.Method == "HEAD"):
 		s.shared(w, r, strings.TrimPrefix(p, "/s/"))
 	case p == "/v1/shares" && r.Method == "POST":
@@ -188,8 +206,14 @@ func (s *server) withApp(w http.ResponseWriter, r *http.Request, f func(http.Res
 }
 
 // PUT /v1/files/PATH: the body is the file. ?alias=NAME also puts it at NAME in the same folder (a stable
-// "latest" link, like kinlog.apk beside kinlog-1.4.0.apk).
+// "latest" link, like kinlog.apk beside kinlog-1.4.0.apk). ?public=1 makes both public, ?public=0 private;
+// without it a path keeps whatever it was, so re-uploading the latest keeps its public link.
 func (s *server) upload(w http.ResponseWriter, r *http.Request, app, rel string) {
+	pub := r.URL.Query().Get("public")
+	if pub != "" && pub != "1" && pub != "0" {
+		fail(w, 400, "public is 1 or 0")
+		return
+	}
 	alias := r.URL.Query().Get("alias")
 	if alias != "" {
 		a, ok := clean(path.Join(path.Dir(rel), alias))
@@ -235,9 +259,19 @@ func (s *server) upload(w http.ResponseWriter, r *http.Request, app, rel string)
 		fail(w, 500, err.Error())
 		return
 	}
-	in := info{Path: rel, URL: s.url(app, rel), Size: n, SHA256: hex.EncodeToString(h.Sum(nil)), Type: contentType(rel), Modified: time.Now().UTC()}
+	isPublic := func(at string) bool {
+		if pub != "" {
+			return pub == "1"
+		}
+		old, _ := s.loadMeta(app, at)
+		return old.Public
+	}
+	in := info{Path: rel, URL: s.url(app, rel), Size: n, SHA256: hex.EncodeToString(h.Sum(nil)), Type: contentType(rel), Modified: time.Now().UTC(), Public: isPublic(rel)}
 	s.saveMeta(app, rel, in)
 	out := map[string]any{"path": in.Path, "url": in.URL, "size": in.Size, "sha256": in.SHA256, "type": in.Type}
+	if in.Public {
+		out["publicUrl"] = s.publicURL(app, rel)
+	}
 	if alias != "" && alias != rel {
 		adst := filepath.Join(s.root, app, filepath.FromSlash(alias))
 		atmp := adst + ".link"
@@ -245,9 +279,12 @@ func (s *server) upload(w http.ResponseWriter, r *http.Request, app, rel string)
 		if err := os.Link(dst, atmp); err == nil {
 			os.Rename(atmp, adst)
 			a := in
-			a.Path, a.URL = alias, s.url(app, alias)
+			a.Path, a.URL, a.Public = alias, s.url(app, alias), isPublic(alias)
 			s.saveMeta(app, alias, a)
 			out["alias"] = a.URL
+			if a.Public {
+				out["aliasPublicUrl"] = s.publicURL(app, alias)
+			}
 		}
 	}
 	log.Printf("%s uploaded %s (%d bytes)", app, rel, n)
@@ -280,8 +317,7 @@ func (s *server) stat(w http.ResponseWriter, app, rel string) {
 		fail(w, 404, "no such file")
 		return
 	}
-	in.URL = s.url(app, rel)
-	writeJSON(w, 200, in)
+	writeJSON(w, 200, s.urls(app, rel, in))
 }
 
 func (s *server) remove(w http.ResponseWriter, app, rel string) {
@@ -345,8 +381,7 @@ func (s *server) files(app string) []info {
 			fi, _ := d.Info()
 			in = info{Path: rel, Size: fi.Size(), Type: contentType(rel), Modified: fi.ModTime().UTC()}
 		}
-		in.URL = s.url(app, rel)
-		out = append(out, in)
+		out = append(out, s.urls(app, rel, in))
 		return nil
 	})
 	return out
@@ -425,4 +460,62 @@ func main() {
 	log.Printf("files on %s, %s, up to %d MB each", addr, s.public, maxMB)
 	srv := &http.Server{Addr: addr, Handler: s, ReadHeaderTimeout: 10 * time.Second}
 	log.Fatal(srv.ListenAndServe())
+}
+
+// GET /p/APP/PATH (open): a file marked public, to anyone. Anything else is a 404, the same as a missing file.
+func (s *server) publicFile(w http.ResponseWriter, r *http.Request, p string) {
+	app, rest, _ := strings.Cut(p, "/")
+	rel, ok := clean(rest)
+	if !appRE.MatchString(app) || !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if in, ok := s.loadMeta(app, rel); !ok || !in.Public {
+		http.NotFound(w, r)
+		return
+	}
+	s.serveFile(w, r, app, rel, "public, max-age=300")
+}
+
+// POST /v1/public {"app", "path", "public": true|false}: a login for any app's file, a token for its own (no app).
+func (s *server) setPublic(w http.ResponseWriter, r *http.Request, c caller) {
+	if t, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); t != "application/json" {
+		fail(w, 415, `send JSON: {"path": "...", "public": true}`)
+		return
+	}
+	var in struct {
+		App    string `json:"app"`
+		Path   string `json:"path"`
+		Public *bool  `json:"public"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&in); err != nil || in.Public == nil {
+		fail(w, 400, `send JSON: {"path": "...", "public": true}`)
+		return
+	}
+	app := in.App
+	if app == "" {
+		app = c.app
+	}
+	rel, ok := clean(in.Path)
+	if !appRE.MatchString(app) || !ok {
+		fail(w, 400, "say which file: path, and app when you're logged in")
+		return
+	}
+	if !c.can(app) {
+		fail(w, 403, "a token changes only its own app's files")
+		return
+	}
+	if fi, err := os.Stat(filepath.Join(s.root, app, filepath.FromSlash(rel))); err != nil || fi.IsDir() {
+		fail(w, 404, "no such file")
+		return
+	}
+	meta, ok := s.loadMeta(app, rel)
+	if !ok {
+		fi, _ := os.Stat(filepath.Join(s.root, app, filepath.FromSlash(rel)))
+		meta = info{Path: rel, Size: fi.Size(), Type: contentType(rel), Modified: fi.ModTime().UTC()}
+	}
+	meta.Public = *in.Public
+	s.saveMeta(app, rel, meta)
+	log.Printf("%s made %s/%s %s", map[bool]string{true: c.user, false: c.app + " (token)"}[c.user != ""], app, rel, map[bool]string{true: "public", false: "private"}[meta.Public])
+	writeJSON(w, 200, s.urls(app, rel, meta))
 }
