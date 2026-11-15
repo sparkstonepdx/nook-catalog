@@ -2,7 +2,7 @@
 
 File storage for the apps on a nook server: APKs, installers, release downloads. CI (or you) uploads with the app's `NOOK_TOKEN`. People with a nook login download, and a share link lets anyone else download one file until it expires. Each app has its own folder, `/f/<app>/...`, and only that app's token can change it.
 
-Needs nook 1.25 or later: the app asks for nook's login itself (`"auth": "nook-login"`), so the login switch shows on for it. Until the dashboard's address is set, only deploy tokens get in.
+After installing, turn on the app's **Nook login** switch (Apps, Manage; nook 1.24+) so people can log in. Until then only deploy tokens get in, and share links still work.
 
 ## Upload from CI
 

@@ -3,8 +3,9 @@
 // interrupted APK download resumes. Each app has its own folder: wordbag's files are at /f/wordbag/..., and only
 // wordbag's token can change them.
 //
-// Behind nook's login ({"auth": "nook-login", "open": ["/s/*", "/health"]}): a deploy token arrives as
-// X-Nook-App (never the token itself), a logged-in dashboard user as X-Nook-User. Share links, /s/ID, are open.
+// Behind nook's token check ({"auth": "nook-token", "open": ["/s/*", "/health"]}) with the app's Nook login switch
+// on: a deploy token arrives as X-Nook-App (never the token itself), a logged-in dashboard user as X-Nook-User.
+// Either may come empty (treat empty as absent). Share links, /s/ID, are open.
 package main
 
 import (
