@@ -34,20 +34,6 @@ func nookAuth(h http.Handler) http.Handler {
 	})
 }
 
-// fakeUpstream has one public package, @sparkstone/css.
-func fakeUpstream(t *testing.T) *httptest.Server {
-	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.EscapedPath() == "/@sparkstone%2Fcss" {
-			w.Header().Set("Content-Type", "application/json")
-			io.WriteString(w, `{"name":"@sparkstone/css","dist-tags":{"latest":"4.0.0"},"versions":{}}`)
-			return
-		}
-		http.Error(w, `{"error":"Not found"}`, 404)
-	}))
-	t.Cleanup(up.Close)
-	return up
-}
-
 func newTestRegistry(t *testing.T, cfg config) (*httptest.Server, string) {
 	dir := t.TempDir()
 	if cfg.MaxBytes == 0 {
@@ -98,8 +84,7 @@ func call(t *testing.T, method, url, app string, body []byte) (int, []byte) {
 }
 
 func TestPublishAndInstall(t *testing.T) {
-	up := fakeUpstream(t)
-	srv, _ := newTestRegistry(t, config{Upstream: up.URL, Scopes: []string{"@sparkstone"}})
+	srv, _ := newTestRegistry(t, config{Scopes: []string{"@sparkstone"}})
 	tgz := tgzOf(t, map[string]string{"package.json": `{"name":"@sparkstone/kit","version":"0.2.0"}`})
 
 	if code, _ := call(t, "GET", srv.URL+"/@sparkstone%2fkit", "", nil); code != 401 {
@@ -131,18 +116,14 @@ func TestPublishAndInstall(t *testing.T) {
 		t.Fatalf("whoami: %d %s", code, b)
 	}
 
-	// public packages in the same scope come through from upstream
-	if code, b := call(t, "GET", srv.URL+"/@sparkstone%2fcss", "wordbag", nil); code != 200 || !strings.Contains(string(b), "4.0.0") {
-		t.Fatalf("upstream: %d %s", code, b)
-	}
-	if code, _ := call(t, "GET", srv.URL+"/@sparkstone%2fnothing", "wordbag", nil); code != 404 {
-		t.Fatalf("missing everywhere: %d", code)
+	// only what's published here: nothing comes from npmjs.org
+	if code, _ := call(t, "GET", srv.URL+"/@sparkstone%2fcss", "wordbag", nil); code != 404 {
+		t.Fatalf("a package not published here: %d, want 404", code)
 	}
 }
 
 func TestPublishRules(t *testing.T) {
-	up := fakeUpstream(t)
-	srv, _ := newTestRegistry(t, config{Upstream: up.URL, Scopes: []string{"@sparkstone"}})
+	srv, _ := newTestRegistry(t, config{Scopes: []string{"@sparkstone"}})
 	tgz := tgzOf(t, map[string]string{"package.json": "{}"})
 	put := func(app, name, version string) (int, string) {
 		code, b := call(t, "PUT", srv.URL+"/"+strings.Replace(name, "/", "%2f", 1), app, publishBodyFor(name, version, tgz, map[string]string{"latest": version}))
@@ -157,7 +138,6 @@ func TestPublishRules(t *testing.T) {
 	}{
 		{"build-docs", "@sparkstone/kit", "1.0.0", 409}, // same version again
 		{"wordbag", "@sparkstone/kit", "1.0.1", 403},    // someone else's package
-		{"build-docs", "@sparkstone/css", "9.0.0", 409}, // would shadow the public one
 		{"build-docs", "@other/kit", "1.0.0", 403},      // not one of the scopes
 		{"build-docs", "leftpad", "1.0.0", 403},         // unscoped
 	}
@@ -191,14 +171,6 @@ func TestPublishRules(t *testing.T) {
 	}
 	if code, _ := call(t, "DELETE", srv.URL+"/@sparkstone%2fkit/-rev/1", "build-docs", nil); code != 405 {
 		t.Errorf("unpublish: %d", code)
-	}
-}
-
-func TestUpstreamDownRefusesNewNames(t *testing.T) {
-	srv, _ := newTestRegistry(t, config{Upstream: "http://127.0.0.1:1"})
-	tgz := tgzOf(t, map[string]string{"package.json": "{}"})
-	if code, _ := call(t, "PUT", srv.URL+"/@a%2fb", "x", publishBodyFor("@a/b", "1.0.0", tgz, nil)); code != 502 {
-		t.Fatalf("got %d, want 502 when the public registry can't be checked", code)
 	}
 }
 
@@ -249,5 +221,114 @@ func TestRealClients(t *testing.T) {
 		if err != nil || !strings.Contains(string(b), "from nook") {
 			t.Fatalf("%s install: %v %s", client, err, b)
 		}
+	}
+}
+
+// TestNameCollisions: a name that's public on npmjs.org can't be published here, and when npmjs.org can't be asked,
+// a new name waits rather than skip the check. New versions of a name already here don't ask.
+func TestNameCollisions(t *testing.T) {
+	asked := 0
+	public := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked++
+		if r.URL.EscapedPath() == "/@sparkstone%2Fcss" || r.URL.EscapedPath() == "/@sparkstone%2fcss" {
+			io.WriteString(w, `{"name":"@sparkstone/css"}`)
+			return
+		}
+		http.Error(w, `{"error":"Not found"}`, 404)
+	}))
+	defer public.Close()
+	srv, _ := newTestRegistry(t, config{Public: public.URL, Scopes: []string{"@sparkstone"}})
+	tgz := tgzOf(t, map[string]string{"package.json": "{}"})
+	put := func(name, version string) int {
+		code, _ := call(t, "PUT", srv.URL+"/"+strings.Replace(name, "/", "%2f", 1), "build-docs", publishBodyFor(name, version, tgz, nil))
+		return code
+	}
+	if code := put("@sparkstone/css", "9.0.0"); code != 409 {
+		t.Fatalf("a name public on npmjs.org: %d, want 409", code)
+	}
+	if code := put("@sparkstone/kit", "1.0.0"); code != 201 {
+		t.Fatalf("a new private name: %d", code)
+	}
+	before := asked
+	if code := put("@sparkstone/kit", "1.0.1"); code != 201 || asked != before {
+		t.Fatalf("a new version of a name already here: %d, asked npmjs.org %d more times", code, asked-before)
+	}
+	public.Close()
+	if code := put("@sparkstone/other", "1.0.0"); code != 502 {
+		t.Fatalf("npmjs.org unreachable: %d, want 502", code)
+	}
+	if code, _ := call(t, "GET", srv.URL+"/@sparkstone%2fcss", "wordbag", nil); code != 502 {
+		t.Fatalf("pass-through with the public registry down: %d, want 502", code)
+	}
+}
+
+// TestRealPassThrough installs a private package from here and a public one in the same scope from npmjs.org, with
+// real npm. It needs the network, so it runs only with NPM_LIVE=1.
+func TestRealPassThrough(t *testing.T) {
+	npm, err := exec.LookPath("npm")
+	if err != nil || os.Getenv("NPM_LIVE") != "1" {
+		t.Skip("set NPM_LIVE=1 (needs npm and npmjs.org)")
+	}
+	inner := newServer(t.TempDir(), config{Scopes: []string{"@sparkstone"}, Public: "https://registry.npmjs.org", MaxBytes: 50 << 20})
+	srv := httptest.NewServer(nookAuth(inner))
+	defer srv.Close()
+	inner.cfg.URL = srv.URL
+	host := strings.TrimPrefix(srv.URL, "http://")
+	npmrc := fmt.Sprintf("@sparkstone:registry=%s/\n//%s/:_authToken=token-%%s\n", srv.URL, host)
+	run := func(dir string, args ...string) {
+		cmd := exec.Command(npm, args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "npm_config_cache="+filepath.Join(dir, ".cache"), "npm_config_update_notifier=false")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("npm %v: %v\n%s", args, err, out)
+		}
+	}
+	pkg := t.TempDir()
+	os.WriteFile(filepath.Join(pkg, "package.json"), []byte(`{"name":"@sparkstone/nook-test-private","version":"0.1.0","main":"index.js"}`), 0o644)
+	os.WriteFile(filepath.Join(pkg, "index.js"), []byte("module.exports = 'private'\n"), 0o644)
+	os.WriteFile(filepath.Join(pkg, ".npmrc"), []byte(fmt.Sprintf(npmrc, "build-docs")), 0o644)
+	run(pkg, "publish", "--provenance=false")
+
+	app := t.TempDir()
+	os.WriteFile(filepath.Join(app, "package.json"), []byte(`{"name":"app","private":true,"dependencies":{"@sparkstone/nook-test-private":"^0.1.0","@sparkstone/css":"^4.0.0"}}`), 0o644)
+	os.WriteFile(filepath.Join(app, ".npmrc"), []byte(fmt.Sprintf(npmrc, "wordbag")), 0o644)
+	run(app, "install")
+	for _, p := range []string{"@sparkstone/nook-test-private/index.js", "@sparkstone/css/package.json"} {
+		if _, err := os.Stat(filepath.Join(app, "node_modules", p)); err != nil {
+			t.Fatalf("%s wasn't installed: %v", p, err)
+		}
+	}
+}
+
+// TestPassThrough: a public package in one of the scopes comes from the public registry; anything else doesn't.
+func TestPassThrough(t *testing.T) {
+	public := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.EscapedPath() {
+		case "/@sparkstone%2fcss", "/@sparkstone%2Fcss":
+			w.Header().Set("Content-Type", "application/json")
+			io.WriteString(w, `{"name":"@sparkstone/css","dist-tags":{"latest":"4.0.0"},"versions":{"4.0.0":{"dist":{"tarball":"https://registry.npmjs.org/@sparkstone/css/-/css-4.0.0.tgz"}}}}`)
+		case "/react", "/@other%2fthing":
+			io.WriteString(w, `{"name":"x"}`)
+		default:
+			http.Error(w, `{"error":"Not found"}`, 404)
+		}
+	}))
+	defer public.Close()
+	srv, _ := newTestRegistry(t, config{Public: public.URL, Scopes: []string{"@sparkstone"}})
+	code, b := call(t, "GET", srv.URL+"/@sparkstone%2fcss", "wordbag", nil)
+	if code != 200 || !strings.Contains(string(b), "registry.npmjs.org/@sparkstone/css/-/css-4.0.0.tgz") {
+		t.Fatalf("public package in the scope: %d %s (its tarball should still come from the public registry)", code, b)
+	}
+	if code, _ := call(t, "GET", srv.URL+"/@sparkstone%2fnothing", "wordbag", nil); code != 404 {
+		t.Fatalf("missing in both: %d", code)
+	}
+	for _, p := range []string{"/react", "/@other%2fthing"} {
+		if code, _ := call(t, "GET", srv.URL+p, "wordbag", nil); code != 404 {
+			t.Fatalf("%s is outside the scopes and must not pass through: %d", p, code)
+		}
+	}
+	public.Close()
+	if code, _ := call(t, "GET", srv.URL+"/@sparkstone%2fcss", "wordbag", nil); code != 502 {
+		t.Fatalf("public registry down: %d, want 502", code)
 	}
 }

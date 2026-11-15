@@ -3,8 +3,8 @@
 A private npm registry for the apps on a [nook](https://github.com/sparkstonepdx/nook) server: publish and install your own packages with the `NOOK_TOKEN` each app's CI already has.
 
 - **No new secrets:** nook checks the token before a request gets here (`{"auth": "nook-token"}`), and this server only sees which app is asking. Every path needs a token, so nothing here is public.
-- **One scope, two registries:** npm picks a registry per scope, so a package not published here is passed through from the public registry. `@sparkstone/kit` can live here while `@sparkstone/css` stays on npmjs.org, both under `@sparkstone:registry`.
-- **No shadowing:** a name the public registry already has can't be published here, since it would hide the public one from every app on the server.
+- **One scope, private and public together:** apps point their scope here (`@sparkstone:registry=...`). Private packages (`@sparkstone/kit`) come from here, and the scope's public ones (`@sparkstone/css`) are passed through from npmjs.org as it answers, tarball links included, so npm downloads those from npmjs.org without this registry's token. Only names in `NPM_SCOPES` pass through: it's never a general npm mirror, and npm gets every other package from npmjs.org itself.
+- **No name collisions:** before a name's first publish here, it asks npmjs.org whether that name exists, read-only. A public name is refused, so an app whose `.npmrc` is missing the scope line can't get the other package by mistake. If npmjs.org can't be asked, a new name waits (502) rather than skip the check. New versions of a name already here don't ask.
 - **Owners:** the app whose token first publishes a package owns it. Only that token can publish more versions or move its tags; any token can install.
 - **Published is final:** a version can't be republished, unpublished or changed, as on npmjs.org.
 
@@ -60,11 +60,9 @@ The parts of the npm registry API that `npm` and `pnpm` use to install and publi
 | Setting | Default | |
 |---|---|---|
 | `NPM_SCOPES` | any | scopes that may be published, comma-separated (`@sparkstone,@other`). Unscoped packages never can |
-| `NPM_UPSTREAM` | `https://registry.npmjs.org` | where other packages come from, and what's checked before a new name; `off` for neither |
+| `NPM_PUBLIC` | `https://registry.npmjs.org` | the public registry: the scopes' public packages pass through from it, and new names are checked against it; `off` for neither |
 | `NPM_URL` | `https://` + the request's host | this registry's address, for tarball links |
 | `NPM_MAX_MB` | 50 | the largest tarball |
-
-If the public registry can't be reached, publishing a new name fails rather than skip the shadowing check. New versions of names already here don't ask it.
 
 ## Data
 
@@ -72,4 +70,8 @@ If the public registry can't be reached, publishing a new name fails rather than
 
 ## Development
 
-`go test ./...` covers publishing, the owner and shadowing rules, tags and the pass-through. With `npm` and `pnpm` installed it also publishes with the real `npm` and installs with both, through a stand-in for nook's token check.
+`go test ./...` covers publishing, the owner rules, tags, name collisions (including npmjs.org being down), and passing through only the scopes' public packages. With `NPM_LIVE=1` it also installs a private and a public `@sparkstone` package together with real npm, against npmjs.org. With `npm` and `pnpm` installed it also publishes with the real `npm` and installs with both, through a stand-in for nook's token check.
+
+## Owning the scope on npmjs.org too
+
+The collision check covers names as they're published. To also stop someone else from taking a name in your scope on npmjs.org later, create the scope there as an organization (free for public packages, and it can stay empty). Then nobody else can publish under it.
