@@ -1,0 +1,38 @@
+/* A proposal until Adam signs it off (build-docs: visual decisions are his). Light and dark from the system. */
+:root {
+  color-scheme: light dark;
+  --bg: #f7f3ec; --surface: #fffdf7; --ink: #1d1a16; --muted: #6b645b; --line: #e6dfd3; --accent: #3b4f9a;
+  --radius: 1rem; --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 16px rgb(0 0 0 / 0.05);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.5;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #16130f; --surface: #211d18; --ink: #f3eee6; --muted: #a59d92; --line: #342f28; --accent: #9fb0ec; --shadow: none; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); }
+main { max-width: 52rem; margin: 0 auto; padding: max(1.5rem, env(safe-area-inset-top)) 1rem max(2.5rem, env(safe-area-inset-bottom)); }
+h1 { margin: 0; font-size: clamp(1.75rem, 6vw, 2.5rem); line-height: 1.15; letter-spacing: -0.01em; }
+a { color: var(--accent); }
+.top { margin: 1rem 0 1.5rem; }
+.lede { color: var(--muted); font-size: 1.0625rem; margin: 0.5rem 0 0; }
+.note { color: var(--muted); }
+.grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); }
+.card { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.card-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.875rem; color: inherit; text-decoration: none; }
+.card .text { display: grid; min-width: 0; }
+.card .text span { color: var(--muted); font-size: 0.875rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.icon { flex: none; display: grid; place-items: center; width: 3.5rem; height: 3.5rem; border-radius: 22%; overflow: hidden; background: var(--bg); border: 1px solid var(--line); }
+.icon img { width: 100%; height: 100%; object-fit: cover; }
+.icon.big { width: 5rem; height: 5rem; }
+.initial { font-size: 1.5rem; font-weight: 600; color: var(--app, var(--accent)); }
+.open { display: inline-flex; align-items: center; justify-content: center; min-height: 2.75rem; padding: 0 1.25rem; border-radius: 999px; background: var(--app, var(--accent)); color: var(--on-app, #fff); font-weight: 600; text-decoration: none; }
+.open.small { flex: none; min-height: 2.25rem; padding: 0 0.875rem; font-size: 0.875rem; }
+@media (prefers-color-scheme: dark) { .open { color: #111; background: color-mix(in oklch, var(--app, var(--accent)) 55%, white); } }
+.back { display: inline-block; margin: 0.5rem 0 1rem; text-decoration: none; }
+.app header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.app .host { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.875rem; }
+.hint { color: var(--muted); font-size: 0.875rem; }
+.shots { list-style: none; margin: 1.5rem -1rem 0; padding: 0 1rem 0.5rem; display: flex; gap: 0.75rem; overflow-x: auto; scroll-snap-type: x mandatory; }
+.shots li { flex: none; scroll-snap-align: start; }
+.shots img { display: block; height: 22rem; max-width: 80vw; object-fit: contain; border-radius: 0.75rem; border: 1px solid var(--line); background: var(--surface); }
+.shots li.wide img { height: 14rem; }
