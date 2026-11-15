@@ -37,7 +37,7 @@ Anyone can run a community catalog the same way: copy this repo, swap in your ow
 | `source.github`, `source.assets` (GOARCH to regexp), `source.format` (`tar.gz`, `zip` (nook 1.7+), `gz`, `raw`), `source.tag` | Where releases come from |
 | `source.tagPrefix` | For a repo that releases several apps: the newest release whose tag starts with it (`push-` picks `push-v0.1.0`). The version is the tag without the prefix. nook 1.20.1+ `catalog-build` |
 | `listen` | `"any"`: may listen on ports outside nook's app range, for CI runners (nook 1.22+) |
-| `auth`, `open` | `"auth": "nook-token"` lets in only requests with a deploy token from the server; `open` lists paths that skip it (nook 1.20+) |
+| `auth`, `open` | `"auth": "nook-token"` lets in only requests with a deploy token from the server; `"nook-login"` also lets in dashboard users allowed on the app (nook 1.25+); `open` lists paths that skip either (nook 1.20+) |
 
 Try a new entry on a server (`nook-admin store install ID`) before relying on it. The health check and rollback guard updates, not first installs.
 
