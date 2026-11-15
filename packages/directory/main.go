@@ -121,15 +121,20 @@ func (d *dir) refresh() {
 	d.mu.Unlock()
 }
 
-func (d *dir) find(host string) (site, bool) {
+// find returns the listed site for host and the one after it in the list (wrapping round), or nil next when it's the only one.
+func (d *dir) find(host string) (site, *site, bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	for _, s := range d.sites {
+	for i, s := range d.sites {
 		if s.Host == host {
-			return s, true
+			if len(d.sites) < 2 {
+				return s, nil, true
+			}
+			n := d.sites[(i+1)%len(d.sites)]
+			return s, &n, true
 		}
 	}
-	return site{}, false
+	return site{}, nil, false
 }
 
 // iconFor proxies a listed site's icon from the dashboard, kept in memory: this page's own origin serves it.
@@ -170,8 +175,8 @@ func (d *dir) iconFor(name string) (icon, bool) {
 	return ic, true
 }
 
-// onColor is the text color for a button filled with c: dark on a light color, white otherwise (and for colors
-// that aren't hex, which can't be measured here).
+// onColor is the text color for a button filled with c: whichever of near-black and white has more contrast on it
+// (WCAG), and white for colors that aren't hex, which can't be measured here.
 func onColor(c string) template.CSS {
 	h := strings.TrimPrefix(c, "#")
 	if len(h) == 3 || len(h) == 4 {
@@ -191,7 +196,9 @@ func onColor(c string) template.CSS {
 			rgb[i] = math.Pow((x+0.055)/1.055, 2.4)
 		}
 	}
-	if 0.2126*rgb[0]+0.7152*rgb[1]+0.0722*rgb[2] > 0.4 {
+	l := 0.2126*rgb[0] + 0.7152*rgb[1] + 0.0722*rgb[2]
+	const dark = 0.0056 // #111
+	if (l+0.05)/(dark+0.05) > 1.05/(l+0.05) {
 		return "#111"
 	}
 	return "#fff"
@@ -201,7 +208,13 @@ type view struct {
 	Title, Intro string
 	Sites        []site
 	Site         *site
+	Next         *site // the app after Site, wrapping round; nil when it's the only one
 	Error        string
+}
+
+type iconView struct {
+	S   site
+	Big bool
 }
 
 func main() {
@@ -234,6 +247,19 @@ func handler(d *dir, title, intro string) *http.ServeMux {
 		},
 		"css":     func(s string) template.CSS { return template.CSS(s) }, // colors are checked against colorRE first
 		"onColor": onColor,
+		// the picture on a card and in an app's phone frame: its first narrow screenshot, else its first
+		"hero": func(s site) *shot {
+			for i := range s.Screenshots {
+				if s.Screenshots[i].FormFactor == "narrow" {
+					return &s.Screenshots[i]
+				}
+			}
+			if len(s.Screenshots) > 0 {
+				return &s.Screenshots[0]
+			}
+			return nil
+		},
+		"iconOf": func(s site, big bool) iconView { return iconView{S: s, Big: big} },
 	}).ParseFS(files, "page.html"))
 	css, _ := files.ReadFile("style.css")
 
@@ -258,12 +284,12 @@ func handler(d *dir, title, intro string) *http.ServeMux {
 		render(w, 200, v)
 	})
 	mux.HandleFunc("GET /a/{host}", func(w http.ResponseWriter, r *http.Request) {
-		s, ok := d.find(r.PathValue("host"))
+		s, next, ok := d.find(r.PathValue("host"))
 		if !ok {
 			render(w, 404, view{Title: title, Error: "That app isn't listed here."})
 			return
 		}
-		render(w, 200, view{Title: title, Site: &s})
+		render(w, 200, view{Title: title, Site: &s, Next: next})
 	})
 	mux.HandleFunc("GET /icon/{name}", func(w http.ResponseWriter, r *http.Request) {
 		ic, ok := d.iconFor(r.PathValue("name"))
@@ -285,7 +311,7 @@ func handler(d *dir, title, intro string) *http.ServeMux {
 		w.Header().Set("Content-Type", "application/manifest+json")
 		json.NewEncoder(w).Encode(map[string]any{
 			"name": title, "short_name": title, "start_url": "/", "display": "standalone",
-			"background_color": "#f7f3ec", "theme_color": "#f7f3ec",
+			"background_color": "#f4f1ec", "theme_color": "#f4f1ec",
 			"icons": []map[string]string{{"src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}},
 		})
 	})
@@ -293,7 +319,7 @@ func handler(d *dir, title, intro string) *http.ServeMux {
 		w.Header().Set("Content-Type", "image/svg+xml")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
 		// four rounded tiles: a grid of apps
-		io.WriteString(w, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#f7f3ec"/><g fill="#3b4f9a"><rect x="12" y="12" width="17" height="17" rx="5"/><rect x="35" y="12" width="17" height="17" rx="5"/><rect x="12" y="35" width="17" height="17" rx="5"/></g><rect x="35" y="35" width="17" height="17" rx="5" fill="#e0a43a"/></svg>`)
+		io.WriteString(w, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#f4f1ec"/><g fill="#3b4f9a"><rect x="12" y="12" width="17" height="17" rx="5"/><rect x="35" y="12" width="17" height="17" rx="5"/><rect x="12" y="35" width="17" height="17" rx="5"/></g><rect x="35" y="35" width="17" height="17" rx="5" fill="#e0a43a"/></svg>`)
 	})
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		d.mu.Lock()

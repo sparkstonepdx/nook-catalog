@@ -5,48 +5,62 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{{if .Site}}{{.Site.Name}} · {{end}}{{.Title}}</title>
 {{if .Site}}<meta name="description" content="{{.Site.Description}}">{{else if .Intro}}<meta name="description" content="{{.Intro}}">{{end}}
-<meta name="theme-color" content="#f7f3ec" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f1ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14130f" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/app-icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+{{if .Site}}<header class="bar">
+  <a class="brand" href="/"><img src="/app-icon.svg" alt="" width="24" height="24">{{.Title}}</a>
+</header>{{end}}
+{{define "icon"}}<span class="icon{{if .Big}} big{{end}}" {{if .S.Background}}style="background: {{css .S.Background}}"{{end}}>{{if .S.Icon}}<img src="/icon/{{.S.Icon}}" alt="">{{else}}<span class="initial">{{initial .S.Name}}</span>{{end}}</span>{{end}}
+{{define "preview"}}<span class="preview" {{if .Background}}style="--app-bg: {{css .Background}}"{{end}}>
+  {{with hero .}}<img class="shot {{.FormFactor}}" src="{{.Src}}" alt="" loading="lazy">{{else}}{{template "icon" (iconOf . true)}}{{end}}
+</span>{{end}}
 <main>
 {{with .Site}}
-  <a class="back" href="/">← {{$.Title}}</a>
   <article class="app" {{if .Theme}}style="--app: {{css .Theme}}; --on-app: {{onColor .Theme}}"{{end}}>
-    <header>
-      <span class="icon big" {{if .Background}}style="background: {{css .Background}}"{{end}}>{{if .Icon}}<img src="/icon/{{.Icon}}" alt="">{{else}}<span class="initial">{{initial .Name}}</span>{{end}}</span>
-      <div>
-        <h1>{{.Name}}</h1>
-        <p class="host">{{.Host}}</p>
-      </div>
-    </header>
-    {{if .Description}}<p class="lede">{{.Description}}</p>{{end}}
-    <p><a class="open" href="{{.URL}}">Open {{if .ShortName}}{{.ShortName}}{{else}}{{.Name}}{{end}}</a></p>
-    {{if .Installable}}<p class="hint">Once it's open, your browser can add it to your home screen.</p>{{end}}
-    {{if .Screenshots}}
-    <ul class="shots" aria-label="Screenshots">
-      {{range .Screenshots}}<li class="{{.FormFactor}}"><img src="{{.Src}}" alt="{{.Label}}" loading="lazy"></li>{{end}}
-    </ul>
+    <div class="head">
+      {{template "icon" (iconOf . false)}}
+      <h1>{{.Name}}</h1>
+      {{if .Description}}<p class="lede">{{.Description}}</p>{{end}}
+      <a class="open big" href="{{.URL}}">Open {{if .ShortName}}{{.ShortName}}{{else}}{{.Name}}{{end}}</a>
+      <p class="muted small">{{.Host}}{{if .Installable}} · Installable: once it's open, add it to your home screen.{{end}}</p>
+    </div>
+    {{if hero .}}<figure class="phone">{{template "preview" .}}</figure>{{end}}
+    {{if gt (len .Screenshots) 1}}
+    <section class="more" aria-labelledby="shots">
+      <h2 id="shots">Screenshots</h2>
+      <ul class="shots" role="list">
+        {{range .Screenshots}}<li class="{{.FormFactor}}"><img src="{{.Src}}" alt="{{.Label}}" loading="lazy"></li>{{end}}
+      </ul>
+    </section>
     {{end}}
   </article>
+  <nav class="next" aria-label="More apps">
+    <a href="/"><span class="muted small">Back to</span><b>All apps</b></a>
+    {{with $.Next}}<a href="/a/{{.Host}}"><span class="muted small">Next</span><b>{{.Name}}</b></a>{{end}}
+  </nav>
 {{else}}
-  <header class="top">
+  <section class="intro">
     <h1>{{.Title}}</h1>
     {{if .Intro}}<p class="lede">{{.Intro}}</p>{{end}}
-  </header>
+  </section>
   {{if .Error}}<p class="note">{{.Error}}</p>{{end}}
   {{if .Sites}}
-  <ul class="grid">
+  <ul class="grid" role="list">
     {{range .Sites}}
     <li class="card" {{if .Theme}}style="--app: {{css .Theme}}; --on-app: {{onColor .Theme}}"{{end}}>
       <a class="card-main" href="/a/{{.Host}}">
-        <span class="icon" {{if .Background}}style="background: {{css .Background}}"{{end}}>{{if .Icon}}<img src="/icon/{{.Icon}}" alt="">{{else}}<span class="initial">{{initial .Name}}</span>{{end}}</span>
-        <span class="text"><strong>{{.Name}}</strong>{{if .Description}}<span>{{.Description}}</span>{{end}}</span>
+        {{template "preview" .}}
+        <span class="card-body">
+          <span class="name">{{template "icon" (iconOf . false)}}<strong>{{.Name}}</strong></span>
+          {{if .Description}}<span class="desc">{{.Description}}</span>{{end}}
+        </span>
       </a>
-      <a class="open small" href="{{.URL}}" aria-label="Open {{.Name}}">Open</a>
+      <a class="open" href="{{.URL}}" aria-label="Open {{.Name}}">Open</a>
     </li>
     {{end}}
   </ul>
