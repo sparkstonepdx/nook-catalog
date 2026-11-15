@@ -317,9 +317,10 @@ func inline(typ string) bool {
 }
 
 func main() {
-	maxMB, _ := strconv.Atoi(env("FILES_MAX_MB", "512"))
-	if maxMB < 1 {
-		maxMB = 512
+	// nook caps any single file an app writes at 2 GB (LimitFSIZE=2G), so a bigger upload would fail partway
+	maxMB, _ := strconv.Atoi(env("FILES_MAX_MB", "2047"))
+	if maxMB < 1 || maxMB > 2047 {
+		maxMB = 2047
 	}
 	data := env("FILES_DATA", filepath.Join(env("HOME", "."), "data"))
 	s := &server{root: filepath.Join(data, "files"), meta: filepath.Join(data, "meta"), maxSize: int64(maxMB) << 20,

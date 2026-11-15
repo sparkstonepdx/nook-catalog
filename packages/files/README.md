@@ -34,7 +34,7 @@ The response has the file's `url`, `size` and `sha256`. `?alias=kinlog.apk` also
 
 | | Default | |
 |---|---|---|
-| `FILES_MAX_MB` | 512 | largest upload |
+| `FILES_MAX_MB` | 2047 | largest upload; 2047 is the most, since nook caps any one file an app writes at 2 GB |
 | `FILES_URL` | `https://{site_host}` | the base of the URLs uploads return |
 
 Files are in `$HOME/data/files`, with their checksums in `$HOME/data/meta`.
