@@ -158,3 +158,18 @@ func (s *server) shared(w http.ResponseWriter, r *http.Request, id string) {
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	s.serveFile(w, r, sh.App, sh.Path, "private, no-cache")
 }
+
+// dropShares ends every link to app/rel: the file it pointed at is gone, and a new file at the same path
+// shouldn't be served on an old link.
+func (s *server) dropShares(app, rel string) {
+	ds, _ := os.ReadDir(s.shares)
+	for _, d := range ds {
+		id, ok := strings.CutSuffix(d.Name(), ".json")
+		if !ok {
+			continue
+		}
+		if sh, live, _ := s.loadShare(id); live && sh.App == app && sh.Path == rel {
+			os.Remove(s.sharePath(id))
+		}
+	}
+}

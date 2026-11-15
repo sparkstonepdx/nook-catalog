@@ -158,7 +158,21 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "PUT":
 			s.withApp(w, r, func(w http.ResponseWriter, r *http.Request, app string) { s.upload(w, r, app, rel) })
 		case "DELETE":
-			s.withApp(w, r, func(w http.ResponseWriter, r *http.Request, app string) { s.remove(w, app, rel) })
+			// a token deletes its own app's files; a login any app's, named with ?app=
+			s.withCaller(w, r, func(w http.ResponseWriter, r *http.Request, c caller) {
+				app := c.app
+				if c.user != "" {
+					app = r.URL.Query().Get("app")
+				} else if a := r.URL.Query().Get("app"); a != "" && a != app {
+					fail(w, 403, "a token deletes only its own app's files")
+					return
+				}
+				if !appRE.MatchString(app) {
+					fail(w, 400, "say which app's file: ?app=NAME")
+					return
+				}
+				s.remove(w, app, rel, c)
+			})
 		case "GET", "HEAD":
 			s.withApp(w, r, func(w http.ResponseWriter, r *http.Request, app string) { s.stat(w, app, rel) })
 		default:
@@ -320,7 +334,7 @@ func (s *server) stat(w http.ResponseWriter, app, rel string) {
 	writeJSON(w, 200, s.urls(app, rel, in))
 }
 
-func (s *server) remove(w http.ResponseWriter, app, rel string) {
+func (s *server) remove(w http.ResponseWriter, app, rel string, c caller) {
 	p := filepath.Join(s.root, app, filepath.FromSlash(rel))
 	if fi, err := os.Stat(p); err != nil || fi.IsDir() {
 		fail(w, 404, "no such file")
@@ -328,6 +342,8 @@ func (s *server) remove(w http.ResponseWriter, app, rel string) {
 	}
 	os.Remove(p)
 	os.Remove(s.metaPath(app, rel))
+	s.dropShares(app, rel)
+	log.Printf("%s deleted %s/%s", cmpOr(c.user, c.app+" (token)"), app, rel)
 	// empty folders go too, up to the app's own
 	for d := filepath.Dir(p); d != filepath.Join(s.root, app); d = filepath.Dir(d) {
 		if os.Remove(d) != nil {
@@ -518,4 +534,11 @@ func (s *server) setPublic(w http.ResponseWriter, r *http.Request, c caller) {
 	s.saveMeta(app, rel, meta)
 	log.Printf("%s made %s/%s %s", map[bool]string{true: c.user, false: c.app + " (token)"}[c.user != ""], app, rel, map[bool]string{true: "public", false: "private"}[meta.Public])
 	writeJSON(w, 200, s.urls(app, rel, meta))
+}
+
+func cmpOr(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }

@@ -19,7 +19,7 @@ The response has the file's `url`, `size` and `sha256`. `?alias=kinlog.apk` also
 
 ## Public files
 
-Add `&public=1` to the upload and the file, and its alias, get a link for anyone: `publicUrl` (and `aliasPublicUrl`) in the response, `https://files.example.com/p/kinlog/android/kinlog.apk`. A path stays public until it's made private, so the next upload to `kinlog.apk` without `public` keeps the same public link serving the new file. New version files like `kinlog-1.5.0.apk` are private unless asked. On the page, each file has a **Public** switch.
+Add `&public=1` to the upload and the file, and its alias, get a link for anyone: `publicUrl` (and `aliasPublicUrl`) in the response, `https://files.example.com/p/kinlog/android/kinlog.apk`. A path stays public until it's made private, so the next upload to `kinlog.apk` without `public` keeps the same public link serving the new file. New version files like `kinlog-1.5.0.apk` are private unless asked. On the page, each file has a **Public** switch and **Delete**, which asks once more first.
 
 ```yaml
 - run: |
@@ -47,7 +47,7 @@ curl -fsS -H "Authorization: Bearer $NOOK_TOKEN" -H "Content-Type: application/j
 | `PUT /v1/files/PATH` | token | the body is the file; `?alias=NAME` also puts it at NAME beside it; `?public=1` or `0` sets both public or private. Replaces a file at PATH |
 | `GET /v1/files` | token or login | a token gets its app's files; a login every app's, each with `app` (`?app=A` for one) |
 | `GET /v1/files/PATH` | token | one file's details |
-| `DELETE /v1/files/PATH` | token | removes it (an alias is its own link and stays) |
+| `DELETE /v1/files/PATH` | token or login | removes it, with `?app=A` for a login; its public link and share links end (an alias is its own file and stays) |
 | `GET /f/APP/PATH` | token or login | the file; a token reads only its own app's |
 | `POST /v1/shares` | token or login | JSON `{"path", "hours"}`, plus `"app"` with a login. `hours` is 1 to 720, 168 if left out. Returns `id`, `url`, `expires` |
 | `GET /v1/shares` | token or login | the live links: a token its app's, a login all of them |

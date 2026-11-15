@@ -286,3 +286,31 @@ func TestPublic(t *testing.T) {
 		t.Fatalf("a deleted then re-uploaded file came back public: %d", w.Code)
 	}
 }
+
+func TestDeleteWithLogin(t *testing.T) {
+	s := newTest(t)
+	do(s, "PUT", "/v1/files/android/wren.apk?public=1", "wren", "APK")
+	w := doUser(s, "POST", "/v1/shares", "adam", `{"app":"wren","path":"android/wren.apk"}`)
+	var sh share
+	json.Unmarshal(w.Body.Bytes(), &sh)
+
+	if w := doUser(s, "DELETE", "/v1/files/android/wren.apk", "adam", ""); w.Code != 400 {
+		t.Fatalf("a login has to say which app: %d", w.Code)
+	}
+	if w := do(s, "DELETE", "/v1/files/android/wren.apk?app=wren", "kinlog", ""); w.Code != 403 {
+		t.Fatalf("another app's token naming wren: %d", w.Code)
+	}
+	if w := doUser(s, "DELETE", "/v1/files/android/wren.apk?app=wren", "adam", ""); w.Code != 204 {
+		t.Fatalf("delete: %d %s", w.Code, w.Body)
+	}
+	for _, p := range []string{"/f/wren/android/wren.apk", "/p/wren/android/wren.apk", "/s/" + sh.ID} {
+		if w := doUser(s, "GET", p, "adam", ""); w.Code != 404 {
+			t.Errorf("%s after delete: %d", p, w.Code)
+		}
+	}
+	// a new file at the same path isn't served on the old share link
+	do(s, "PUT", "/v1/files/android/wren.apk", "wren", "NEW")
+	if w := do(s, "GET", "/s/"+sh.ID, "", ""); w.Code != 404 {
+		t.Fatalf("old share link serves the new file: %d", w.Code)
+	}
+}
