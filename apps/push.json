@@ -1,0 +1,25 @@
+{
+  "id": "push",
+  "name": "Push",
+  "description": "Web Push for every app on this server. Each app gets its own VAPID keys from its CI with NOOK_TOKEN; browsers subscribe and get a handle anyone can notify, now or at a set time. Built for local-first apps with no backend of their own.",
+  "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/push",
+  "license": "MIT",
+  "kind": "web",
+  "site": "push",
+  "health": "/v1/health",
+  "memory": "64M",
+  "binary": "push",
+  "auth": "nook-token",
+  "open": ["/v1/health", "/v1/subscribe/*", "/v1/subscriptions/*", "/v1/send/*"],
+  "env": [
+    { "key": "PUSH_SUBJECT", "desc": "A mailto: address push services can reach you at, like mailto:you@example.com", "required": true },
+    { "key": "PUSH_SENDS_PER_HOUR", "desc": "Pushes one handle can get an hour, sent and scheduled together", "default": "60" }
+  ],
+  "files": { "run": "#!/bin/sh\nexec ./push\n" },
+  "source": {
+    "github": "sparkstonepdx/nook-catalog",
+    "tagPrefix": "push-",
+    "assets": { "amd64": "_linux_amd64\\.tar\\.gz$", "arm64": "_linux_arm64\\.tar\\.gz$" },
+    "format": "tar.gz"
+  }
+}
