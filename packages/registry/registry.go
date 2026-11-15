@@ -42,20 +42,52 @@ type server struct {
 	cfg    config
 	now    func() time.Time
 	mu     sync.Mutex   // publishes and tag changes, one at a time
-	client *http.Client // only for publicExists
+	client *http.Client // to the public registry: passThrough and publicExists
 }
 
 func newServer(dir string, cfg config) *server {
 	return &server{dir: dir, cfg: cfg, now: time.Now, client: &http.Client{Timeout: 15 * time.Second}}
 }
 
+// passThrough serves a public package in one of NPM_SCOPES from the public registry, as it answers: its tarball links
+// point there, so npm downloads them from there (without this registry's token). Anything outside the scopes is a 404:
+// apps point only their scope here, and this isn't a general mirror.
+func (s *server) passThrough(w http.ResponseWriter, r *http.Request, name string) {
+	if s.cfg.Public == "" || len(s.cfg.Scopes) == 0 || !contains(s.cfg.Scopes, scopeOf(name)) {
+		fail(w, 404, "not found")
+		return
+	}
+	req, err := http.NewRequestWithContext(r.Context(), "GET", s.cfg.Public+"/"+strings.Replace(name, "/", "%2f", 1), nil)
+	if err != nil {
+		fail(w, 500, err.Error())
+		return
+	}
+	if a := r.Header.Get("Accept"); a != "" {
+		req.Header.Set("Accept", a)
+	}
+	res, err := s.client.Do(req)
+	if err != nil {
+		fail(w, 502, "the public registry: "+err.Error())
+		return
+	}
+	defer res.Body.Close()
+	if ct := res.Header.Get("Content-Type"); ct != "" {
+		w.Header().Set("Content-Type", ct)
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(res.StatusCode)
+	if r.Method != "HEAD" {
+		io.Copy(w, io.LimitReader(res.Body, 64<<20))
+	}
+}
+
 // publicExists says whether the public registry has a package by this name. Read-only, and only asked before a name's
 // first publish here; nothing it answers is stored or served.
 func (s *server) publicExists(ctx context.Context, name string) (bool, error) {
-	if s.cfg.Check == "" {
+	if s.cfg.Public == "" {
 		return false, nil
 	}
-	req, err := http.NewRequestWithContext(ctx, "GET", s.cfg.Check+"/"+strings.Replace(name, "/", "%2f", 1), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", s.cfg.Public+"/"+strings.Replace(name, "/", "%2f", 1), nil)
 	if err != nil {
 		return false, err
 	}
@@ -72,7 +104,7 @@ func (s *server) publicExists(ctx context.Context, name string) (bool, error) {
 	case res.StatusCode < 300:
 		return true, nil
 	}
-	return false, fmt.Errorf("%s answered %d", s.cfg.Check, res.StatusCode)
+	return false, fmt.Errorf("%s answered %d", s.cfg.Public, res.StatusCode)
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -217,8 +249,7 @@ func (s *server) packument(w http.ResponseWriter, r *http.Request, name string) 
 		return
 	}
 	if d == nil {
-		// only what's published here: npm asks npmjs.org itself for anything outside the scopes pointed here
-		fail(w, 404, "not found")
+		s.passThrough(w, r, name)
 		return
 	}
 	versions := map[string]any{}
@@ -343,11 +374,11 @@ func (s *server) publish(w http.ResponseWriter, r *http.Request, app, name strin
 		// a name that's public on npmjs.org would collide: an app with the wrong .npmrc would get the other one
 		on, err := s.publicExists(r.Context(), name)
 		if err != nil {
-			fail(w, 502, "couldn't check whether "+name+" is public on "+s.cfg.Check+": "+err.Error())
+			fail(w, 502, "couldn't check whether "+name+" is public on "+s.cfg.Public+": "+err.Error())
 			return
 		}
 		if on {
-			fail(w, 409, name+" is already public on "+s.cfg.Check+"; pick a name that isn't, so the two can't be mixed up")
+			fail(w, 409, name+" is already public on "+s.cfg.Public+"; pick a name that isn't, so the two can't be mixed up")
 			return
 		}
 		d = &doc{Name: name, Owner: app, DistTags: map[string]string{}, Versions: map[string]json.RawMessage{}, Time: map[string]string{}}
