@@ -1,0 +1,24 @@
+{
+  "id": "directory",
+  "name": "Directory",
+  "description": "A public page of the apps you list on the dashboard, with each one's own icon, name and screenshots. Installable as a home-screen launcher.",
+  "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/directory",
+  "license": "MIT",
+  "kind": "web",
+  "site": "apps",
+  "health": "/health",
+  "memory": "64M",
+  "binary": "directory",
+  "env": [
+    { "key": "DIRECTORY_TITLE", "desc": "The page's heading", "default": "Apps" },
+    { "key": "DIRECTORY_INTRO", "desc": "A line under the heading" },
+    { "key": "DIRECTORY_SOURCE", "desc": "Where the list comes from: your dashboard's /api/v1/directory", "default": "{dashboard_url}/api/v1/directory" }
+  ],
+  "files": { "run": "#!/bin/sh\nexec ./directory\n" },
+  "source": {
+    "github": "sparkstonepdx/nook-catalog",
+    "tagPrefix": "directory-",
+    "assets": { "amd64": "^directory_.*_linux_amd64\\.tar\\.gz$", "arm64": "^directory_.*_linux_arm64\\.tar\\.gz$" },
+    "format": "tar.gz"
+  }
+}

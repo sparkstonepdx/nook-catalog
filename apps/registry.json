@@ -1,0 +1,24 @@
+{
+  "id": "registry",
+  "name": "Registry",
+  "description": "A private npm registry for your apps: publish and install with NOOK_TOKEN, everything else from npmjs.org.",
+  "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/registry",
+  "license": "MIT",
+  "kind": "web",
+  "site": "npm",
+  "health": "/-/ping",
+  "memory": "128M",
+  "binary": "registry",
+  "auth": "nook-token",
+  "env": [
+    { "key": "NPM_SCOPES", "desc": "Scopes your apps may publish, comma-separated, like @sparkstone", "required": true },
+    { "key": "NPM_URL", "desc": "Public URL of this registry", "default": "https://{site_host}" }
+  ],
+  "files": { "run": "#!/bin/sh\nexec ./registry\n" },
+  "source": {
+    "github": "sparkstonepdx/nook-catalog",
+    "tagPrefix": "registry-",
+    "assets": { "amd64": "^registry_.*_linux_amd64\\.tar\\.gz$", "arm64": "^registry_.*_linux_arm64\\.tar\\.gz$" },
+    "format": "tar.gz"
+  }
+}

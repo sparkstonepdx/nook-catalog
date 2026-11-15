@@ -1,0 +1,27 @@
+{
+  "id": "runners",
+  "name": "Runners",
+  "description": "GitHub Actions runners for an organization or a repository, each taking one job in a fresh folder. For your own repositories: no Docker, no root.",
+  "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/runners",
+  "license": "MIT",
+  "kind": "service",
+  "site": "runners",
+  "health": "/health",
+  "memory": "2G",
+  "cpu": "200%",
+  "binary": "runners",
+  "listen": "any",
+  "env": [
+    { "key": "GITHUB_SCOPE", "desc": "An organization (sparkstonepdx) or a repository (sparkstonepdx/wordbag)", "required": true },
+    { "key": "GITHUB_TOKEN", "desc": "Fine-grained token: Self-hosted runners (organization) or Administration (repository), read and write", "required": true, "secret": true },
+    { "key": "RUNNERS", "desc": "How many jobs at once, 1 to 16", "default": "2" },
+    { "key": "RUNNER_LABELS", "desc": "Labels besides self-hosted, Linux and the architecture, comma-separated", "default": "nook" }
+  ],
+  "files": { "run": "#!/bin/sh\nexec ./runners\n" },
+  "source": {
+    "github": "sparkstonepdx/nook-catalog",
+    "tagPrefix": "runners-",
+    "assets": { "amd64": "^runners_.*_linux_amd64\\.tar\\.gz$", "arm64": "^runners_.*_linux_arm64\\.tar\\.gz$" },
+    "format": "tar.gz"
+  }
+}
