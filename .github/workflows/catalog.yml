@@ -24,6 +24,10 @@ concurrency:
   cancel-in-progress: false
 env:
   PUBLISH: ${{ github.event_name != 'pull_request' }}
+  # nook's tools (catalog-build, release-sign) straight from GitHub: the module proxy can serve an older @latest for a
+  # while after a release, and a new catalog field would be dropped until it catches up
+  GOPROXY: direct
+  GONOSUMDB: github.com/sparkstonepdx
   STOREFRONT: ${{ secrets.NOOK_TOKEN != '' }}
 jobs:
   catalog:
