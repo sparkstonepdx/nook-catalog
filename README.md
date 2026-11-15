@@ -36,6 +36,7 @@ Anyone can run a community catalog the same way: copy this repo, swap in your ow
 | `memory`, `cpu` | The app's limits |
 | `source.github`, `source.assets` (GOARCH to regexp), `source.format` (`tar.gz`, `zip` (nook 1.7+), `gz`, `raw`), `source.tag` | Where releases come from |
 | `source.tagPrefix` | For a repo that releases several apps: the newest release whose tag starts with it (`push-` picks `push-v0.1.0`). The version is the tag without the prefix. nook 1.20.1+ `catalog-build` |
+| `listen` | `"any"`: may listen on ports outside nook's app range, for CI runners (nook 1.22+) |
 | `auth`, `open` | `"auth": "nook-token"` lets in only requests with a deploy token from the server; `open` lists paths that skip it (nook 1.20+) |
 
 Try a new entry on a server (`nook-admin store install ID`) before relying on it. The health check and rollback guard updates, not first installs.
@@ -46,6 +47,7 @@ First-party apps can live here, in `packages/<name>/`, instead of a repo of thei
 
 | Package | |
 |---|---|
+| [`runners`](packages/runners) | GitHub Actions runners for an organization or a repository, each for one job, in nook's sandbox |
 | [`push`](packages/push) | Web Push for every app on the server: VAPID keys per app from CI with `NOOK_TOKEN`, send handles for browsers, scheduled pushes |
 
 ## The storefront
