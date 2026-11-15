@@ -108,6 +108,28 @@ function publicControls(f) {
   return [el("label", { className: "switch" }, box, el("span", { textContent: "Public" })), out];
 }
 
+// Delete asks once more, in place, before it deletes.
+function deleteControls(f) {
+  const out = el("div", { className: "out" });
+  const del = el("button", { className: "btn subtle", textContent: "Delete" });
+  del.addEventListener("click", () => {
+    const yes = el("button", { className: "btn danger", textContent: "Delete it" });
+    const no = el("button", { className: "btn subtle", textContent: "Keep" });
+    no.addEventListener("click", () => out.replaceChildren());
+    yes.addEventListener("click", async () => {
+      yes.disabled = no.disabled = true;
+      try {
+        await api("DELETE", "/v1/files/" + f.path + "?app=" + encodeURIComponent(f.app));
+        await Promise.all([loadFiles(), loadLinks()]);
+      } catch (e) {
+        out.replaceChildren(el("small", { className: "error", textContent: e.message }));
+      }
+    });
+    out.replaceChildren(el("small", { textContent: "Delete " + f.path + "? Its public link and share links stop working. It can't be undone." }), el("div", { className: "share" }, yes, no));
+  });
+  return [del, out];
+}
+
 function shareControls(f) {
   const pick = el("select", { className: "input", ariaLabel: "How long the link lasts" }, ...durations.map(([label, h]) => el("option", { value: h, textContent: label, selected: h === 168 })));
   const go = el("button", { className: "btn", textContent: "Share" });
@@ -135,7 +157,10 @@ async function loadFiles() {
     el("h3", { textContent: app }),
     el("ul", { className: "list" }, ...fs.map((f) => el("li", { className: "row" },
       el("div", { className: "row-main" }, el("a", { href: "/f/" + f.app + "/" + f.path, textContent: f.path }), el("small", { textContent: size(f.size) + " · " + when(f.modified) })),
-      ...shareControls(f), ...publicControls(f)))))));
+      ...shareControls(f), ...(() => {
+        const [pub, pubOut] = publicControls(f), [del, delOut] = deleteControls(f);
+        return [el("div", { className: "file-tools" }, pub, del), pubOut, delOut];
+      })()))))));
 }
 
 loadFiles().catch((e) => document.getElementById("apps").replaceChildren(el("p", { className: "error", textContent: e.message })));
@@ -160,7 +185,9 @@ small, .hint { color: var(--muted); font-size: 13px; }
 .input, .btn { font: inherit; font-size: 14px; min-height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
 .btn { cursor: pointer; font-weight: 600; } .btn:disabled { opacity: .5; } .btn.subtle { justify-self: start; font-weight: 500; color: var(--muted); }
 .error { color: var(--error); }
+.file-tools { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.btn.danger { background: var(--error); border-color: var(--error); color: var(--bg); }
 .switch { display: inline-flex; gap: 8px; align-items: center; font-size: 14px; justify-self: start; }
 .switch input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
-@media (min-width: 640px) { .row { grid-template-columns: 1fr auto; align-items: center; } .out, .copy, .row .btn.subtle, .switch { grid-column: 1 / -1; } }
+@media (min-width: 640px) { .row { grid-template-columns: 1fr auto; align-items: center; } .out, .copy, .row .btn.subtle, .switch, .file-tools { grid-column: 1 / -1; } }
 `
