@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{if .Site}}{{.Site.Name}} · {{end}}{{.Title}}</title>
+{{if .Site}}<meta name="description" content="{{.Site.Description}}">{{else if .Intro}}<meta name="description" content="{{.Intro}}">{{end}}
+<meta name="theme-color" content="#f7f3ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/app-icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+{{with .Site}}
+  <a class="back" href="/">← {{$.Title}}</a>
+  <article class="app" {{if .Theme}}style="--app: {{css .Theme}}; --on-app: {{onColor .Theme}}"{{end}}>
+    <header>
+      <span class="icon big" {{if .Background}}style="background: {{css .Background}}"{{end}}>{{if .Icon}}<img src="/icon/{{.Icon}}" alt="">{{else}}<span class="initial">{{initial .Name}}</span>{{end}}</span>
+      <div>
+        <h1>{{.Name}}</h1>
+        <p class="host">{{.Host}}</p>
+      </div>
+    </header>
+    {{if .Description}}<p class="lede">{{.Description}}</p>{{end}}
+    <p><a class="open" href="{{.URL}}">Open {{if .ShortName}}{{.ShortName}}{{else}}{{.Name}}{{end}}</a></p>
+    {{if .Installable}}<p class="hint">Once it's open, your browser can add it to your home screen.</p>{{end}}
+    {{if .Screenshots}}
+    <ul class="shots" aria-label="Screenshots">
+      {{range .Screenshots}}<li class="{{.FormFactor}}"><img src="{{.Src}}" alt="{{.Label}}" loading="lazy"></li>{{end}}
+    </ul>
+    {{end}}
+  </article>
+{{else}}
+  <header class="top">
+    <h1>{{.Title}}</h1>
+    {{if .Intro}}<p class="lede">{{.Intro}}</p>{{end}}
+  </header>
+  {{if .Error}}<p class="note">{{.Error}}</p>{{end}}
+  {{if .Sites}}
+  <ul class="grid">
+    {{range .Sites}}
+    <li class="card" {{if .Theme}}style="--app: {{css .Theme}}; --on-app: {{onColor .Theme}}"{{end}}>
+      <a class="card-main" href="/a/{{.Host}}">
+        <span class="icon" {{if .Background}}style="background: {{css .Background}}"{{end}}>{{if .Icon}}<img src="/icon/{{.Icon}}" alt="">{{else}}<span class="initial">{{initial .Name}}</span>{{end}}</span>
+        <span class="text"><strong>{{.Name}}</strong>{{if .Description}}<span>{{.Description}}</span>{{end}}</span>
+      </a>
+      <a class="open small" href="{{.URL}}" aria-label="Open {{.Name}}">Open</a>
+    </li>
+    {{end}}
+  </ul>
+  {{else if not .Error}}<p class="note">Nothing is listed yet.</p>{{end}}
+{{end}}
+</main>
+</body>
+</html>
