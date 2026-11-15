@@ -1,4 +1,4 @@
-# npm
+# registry
 
 A private npm registry for the apps on a [nook](https://github.com/sparkstonepdx/nook) server: publish and install your own packages with the `NOOK_TOKEN` each app's CI already has.
 
@@ -8,7 +8,7 @@ A private npm registry for the apps on a [nook](https://github.com/sparkstonepdx
 - **Owners:** the app whose token first publishes a package owns it. Only that token can publish more versions or move its tags; any token can install.
 - **Published is final:** a version can't be republished, unpublished or changed, as on npmjs.org.
 
-Install it from the nook store and set `NPM_SCOPES` to the scopes you'll publish, like `@sparkstone`. The source lives here in `packages/npm`; a change to `VERSION` on main releases it as `npm-vX.Y.Z`.
+Install it from the nook store and set `NPM_SCOPES` to the scopes you'll publish, like `@sparkstone`. The source lives here in `packages/registry`; a change to `VERSION` on main releases it as `registry-vX.Y.Z`. It's npm only for now; Docker images are proposed in nook#64.
 
 ## Publishing from CI
 

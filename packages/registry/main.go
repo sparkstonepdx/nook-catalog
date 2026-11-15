@@ -1,4 +1,4 @@
-// npm is a small private npm registry for the apps on a nook server. Packages are published and installed with the
+// registry is a small private npm registry for the apps on a nook server. Packages are published and installed with the
 // app's NOOK_TOKEN, and anything not published here is passed through from the public registry, so a scope can live
 // here even when some of its packages are public (@sparkstone/kit here, @sparkstone/css on npmjs.org).
 //
@@ -54,7 +54,7 @@ func main() {
 	}
 	s := newServer(dir, loadConfig())
 	addr := "127.0.0.1:" + env("PORT", "8080")
-	log.Printf("npm registry listening on %s, packages in %s, upstream %q", addr, dir, s.cfg.Upstream)
+	log.Printf("registry listening on %s, packages in %s, upstream %q", addr, dir, s.cfg.Upstream)
 	srv := &http.Server{Addr: addr, Handler: s, ReadHeaderTimeout: 10 * time.Second}
 	log.Fatal(srv.ListenAndServe())
 }
