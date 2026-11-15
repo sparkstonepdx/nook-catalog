@@ -1,9 +1,10 @@
-// files is public file storage for the apps on a nook server: CI (or you) uploads with the app's NOOK_TOKEN, and
-// anyone can download from a plain link, with ranges, so an interrupted APK download resumes. Each app has its own
-// folder: wordbag's files are at /f/wordbag/..., and only wordbag's token can change them.
+// files is file storage for the apps on a nook server: CI (or you) uploads with the app's NOOK_TOKEN, people with
+// a nook login download, and anyone can download from a share link until it expires. Downloads take ranges, so an
+// interrupted APK download resumes. Each app has its own folder: wordbag's files are at /f/wordbag/..., and only
+// wordbag's token can change them.
 //
-// Behind nook's token check ({"auth": "nook-token", "open": ["/f/*", "/health"]}): uploads arrive with X-Nook-App
-// and never the token; downloads are open.
+// Behind nook's login ({"auth": "nook-login", "open": ["/s/*", "/health"]}): a deploy token arrives as
+// X-Nook-App (never the token itself), a logged-in dashboard user as X-Nook-User. Share links, /s/ID, are open.
 package main
 
 import (
@@ -29,16 +30,24 @@ import (
 var (
 	appRE     = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
 	segmentRE = regexp.MustCompile(`^[A-Za-z0-9_-][A-Za-z0-9._-]{0,127}$`) // no leading dot: no hidden files, no ..
+	shareRE   = regexp.MustCompile(`^[A-Za-z0-9_-]{22}$`)
+)
+
+const (
+	shareDefault = 7 * 24 * time.Hour
+	shareMax     = 30 * 24 * time.Hour
 )
 
 type server struct {
 	root    string // data/files: <app>/<path>
 	meta    string // data/meta: <app>/<path>.json
+	shares  string // data/shares: <id>.json
 	maxSize int64
 	public  string // https://files.example.com, for the URLs uploads return
 }
 
 type info struct {
+	App      string    `json:"app,omitempty"`
 	Path     string    `json:"path"`
 	URL      string    `json:"url"`
 	Size     int64     `json:"size"`
@@ -100,10 +109,26 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch p := r.URL.Path; {
 	case p == "/health":
 		writeJSON(w, 200, map[string]bool{"ok": true})
+	case p == "/" && r.Method == "GET":
+		s.home(w, r)
+	case (p == "/ui.js" || p == "/ui.css") && r.Method == "GET":
+		ui(w, p)
+	case p == "/favicon.ico":
+		w.WriteHeader(204)
 	case strings.HasPrefix(p, "/f/") && (r.Method == "GET" || r.Method == "HEAD"):
 		s.download(w, r, strings.TrimPrefix(p, "/f/"))
+	case strings.HasPrefix(p, "/s/") && (r.Method == "GET" || r.Method == "HEAD"):
+		s.shared(w, r, strings.TrimPrefix(p, "/s/"))
+	case p == "/v1/shares" && r.Method == "POST":
+		s.withCaller(w, r, s.share)
+	case p == "/v1/shares" && r.Method == "GET":
+		s.withCaller(w, r, s.listShares)
+	case strings.HasPrefix(p, "/v1/shares/") && r.Method == "DELETE":
+		s.withCaller(w, r, func(w http.ResponseWriter, r *http.Request, c caller) {
+			s.unshare(w, c, strings.TrimPrefix(p, "/v1/shares/"))
+		})
 	case p == "/v1/files" && r.Method == "GET":
-		s.withApp(w, r, s.list)
+		s.withCaller(w, r, s.list)
 	case strings.HasPrefix(p, "/v1/files/"):
 		rel, ok := clean(strings.TrimPrefix(p, "/v1/files/"))
 		if !ok {
@@ -125,7 +150,33 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// withApp runs f for requests that came through nook's token check, which sets X-Nook-App.
+// caller is who nook's login check let in: an app's deploy token (app) or a dashboard user (user).
+type caller struct{ app, user string }
+
+// can says whether c may read app's files and share them: a user allowed on Files reads every app's, a token
+// only its own app's.
+func (c caller) can(app string) bool { return c.user != "" || c.app == app }
+
+func callerOf(r *http.Request) (caller, bool) {
+	if u := r.Header.Get("X-Nook-User"); u != "" && len(u) <= 128 && !strings.ContainsAny(u, "\r\n") {
+		return caller{user: u}, true
+	}
+	if a := r.Header.Get("X-Nook-App"); appRE.MatchString(a) {
+		return caller{app: a}, true
+	}
+	return caller{}, false
+}
+
+func (s *server) withCaller(w http.ResponseWriter, r *http.Request, f func(http.ResponseWriter, *http.Request, caller)) {
+	c, ok := callerOf(r)
+	if !ok {
+		fail(w, 401, "log in with nook, or send your app's NOOK_TOKEN: Authorization: Bearer $NOOK_TOKEN")
+		return
+	}
+	f(w, r, c)
+}
+
+// withApp runs f for requests with a deploy token, which sets X-Nook-App: changing files is CI's job.
 func (s *server) withApp(w http.ResponseWriter, r *http.Request, f func(http.ResponseWriter, *http.Request, string)) {
 	app := r.Header.Get("X-Nook-App")
 	if !appRE.MatchString(app) {
@@ -249,8 +300,37 @@ func (s *server) remove(w http.ResponseWriter, app, rel string) {
 	w.WriteHeader(204)
 }
 
-// GET /v1/files (token): every file of the app's.
-func (s *server) list(w http.ResponseWriter, r *http.Request, app string) {
+// GET /v1/files: every file of the token's app, or for a logged-in user, of every app (?app=A for one).
+func (s *server) list(w http.ResponseWriter, r *http.Request, c caller) {
+	if c.app != "" {
+		writeJSON(w, 200, map[string]any{"app": c.app, "files": s.files(c.app)})
+		return
+	}
+	apps := []string{}
+	if a := r.URL.Query().Get("app"); a != "" {
+		if !appRE.MatchString(a) {
+			fail(w, 400, "no such app")
+			return
+		}
+		apps = append(apps, a)
+	} else if ds, err := os.ReadDir(s.root); err == nil {
+		for _, d := range ds {
+			if d.IsDir() && appRE.MatchString(d.Name()) {
+				apps = append(apps, d.Name())
+			}
+		}
+	}
+	out := []info{}
+	for _, a := range apps {
+		for _, in := range s.files(a) {
+			in.App = a
+			out = append(out, in)
+		}
+	}
+	writeJSON(w, 200, map[string]any{"files": out})
+}
+
+func (s *server) files(app string) []info {
 	base := filepath.Join(s.root, app)
 	out := []info{}
 	filepath.WalkDir(base, func(p string, d fs.DirEntry, err error) error {
@@ -268,10 +348,10 @@ func (s *server) list(w http.ResponseWriter, r *http.Request, app string) {
 		out = append(out, in)
 		return nil
 	})
-	writeJSON(w, 200, map[string]any{"app": app, "files": out})
+	return out
 }
 
-// GET /f/APP/PATH (open): the file, with ranges and its SHA-256. Nothing it serves can run script on this origin.
+// GET /f/APP/PATH (a nook login, or the app's own token): the file.
 func (s *server) download(w http.ResponseWriter, r *http.Request, p string) {
 	app, rest, _ := strings.Cut(p, "/")
 	rel, ok := clean(rest)
@@ -279,6 +359,20 @@ func (s *server) download(w http.ResponseWriter, r *http.Request, p string) {
 		http.NotFound(w, r)
 		return
 	}
+	c, ok := callerOf(r)
+	if !ok {
+		fail(w, 401, "log in with nook, or ask for a share link")
+		return
+	}
+	if !c.can(app) {
+		http.NotFound(w, r)
+		return
+	}
+	s.serveFile(w, r, app, rel, "private, max-age=300")
+}
+
+// serveFile sends a file with ranges and its SHA-256. Nothing it serves can run script on this origin.
+func (s *server) serveFile(w http.ResponseWriter, r *http.Request, app, rel, cache string) {
 	f, err := os.Open(filepath.Join(s.root, app, filepath.FromSlash(rel)))
 	if err != nil {
 		http.NotFound(w, r)
@@ -296,7 +390,7 @@ func (s *server) download(w http.ResponseWriter, r *http.Request, p string) {
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; sandbox")
 	h.Set("Access-Control-Allow-Origin", "*")
-	h.Set("Cache-Control", "public, max-age=300")
+	h.Set("Cache-Control", cache)
 	if in, ok := s.loadMeta(app, rel); ok {
 		h.Set("X-Checksum-SHA256", in.SHA256)
 	}
@@ -323,7 +417,7 @@ func main() {
 		maxMB = 2047
 	}
 	data := env("FILES_DATA", filepath.Join(env("HOME", "."), "data"))
-	s := &server{root: filepath.Join(data, "files"), meta: filepath.Join(data, "meta"), maxSize: int64(maxMB) << 20,
+	s := &server{root: filepath.Join(data, "files"), meta: filepath.Join(data, "meta"), shares: filepath.Join(data, "shares"), maxSize: int64(maxMB) << 20,
 		public: strings.TrimRight(env("FILES_URL", "https://"+env("SITE_HOST", "localhost")), "/")}
 	os.MkdirAll(s.root, 0o755)
 	addr := "127.0.0.1:" + env("PORT", "8080")
