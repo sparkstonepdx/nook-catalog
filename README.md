@@ -46,6 +46,7 @@ First-party apps can live here, in `packages/<name>/`, instead of a repo of thei
 
 | Package | |
 |---|---|
+| [`npm`](packages/npm) | A private npm registry: publish and install your own packages with `NOOK_TOKEN`, everything else passed through from npmjs.org |
 | [`push`](packages/push) | Web Push for every app on the server: VAPID keys per app from CI with `NOOK_TOKEN`, send handles for browsers, scheduled pushes |
 
 ## The storefront
