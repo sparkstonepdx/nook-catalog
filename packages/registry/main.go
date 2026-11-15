@@ -1,6 +1,7 @@
 // registry is a small private npm registry for the apps on a nook server. Packages are published and installed with the
-// app's NOOK_TOKEN. It never talks to npmjs.org: it serves only what was published here, and apps point only their
-// private scopes at it, so npm gets everything else from npmjs.org itself.
+// app's NOOK_TOKEN. It serves only what was published here, and apps point only their private scopes at it, so npm
+// gets everything else from npmjs.org itself. The one thing it asks npmjs.org is whether a name exists, before that
+// name's first publish here: a name that's public there would collide, so it's refused.
 //
 // Behind nook's token check ({"auth": "nook-token"}): every request arrives with X-Nook-App and never the token.
 package main
@@ -19,6 +20,7 @@ import (
 type config struct {
 	URL      string   // NPM_URL: this registry's public address; defaults to https:// and the request's host
 	Scopes   []string // NPM_SCOPES: scopes that may be published here, like @sparkstone; empty for any scope
+	Check    string   // NPM_CHECK: the public registry a new name is checked against; "off" for no check
 	MaxBytes int64    // NPM_MAX_MB: the largest publish
 }
 
@@ -31,7 +33,10 @@ func env(k, def string) string {
 
 func loadConfig() config {
 	mb, _ := strconv.Atoi(env("NPM_MAX_MB", "50"))
-	cfg := config{URL: strings.TrimRight(env("NPM_URL", ""), "/"), MaxBytes: int64(mb) << 20}
+	cfg := config{URL: strings.TrimRight(env("NPM_URL", ""), "/"), Check: strings.TrimRight(env("NPM_CHECK", "https://registry.npmjs.org"), "/"), MaxBytes: int64(mb) << 20}
+	if cfg.Check == "off" {
+		cfg.Check = ""
+	}
 	for _, s := range strings.Split(os.Getenv("NPM_SCOPES"), ",") {
 		if s = strings.TrimSpace(s); s != "" {
 			if !strings.HasPrefix(s, "@") {

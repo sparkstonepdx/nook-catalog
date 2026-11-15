@@ -3,7 +3,8 @@
 A private npm registry for the apps on a [nook](https://github.com/sparkstonepdx/nook) server: publish and install your own packages with the `NOOK_TOKEN` each app's CI already has.
 
 - **No new secrets:** nook checks the token before a request gets here (`{"auth": "nook-token"}`), and this server only sees which app is asking. Every path needs a token, so nothing here is public.
-- **Never talks to npmjs.org:** it serves only what was published here, and makes no requests of its own. Apps point only their private scope here (`@scope:registry=...`), and npm gets everything else from npmjs.org itself.
+- **Serves nothing from npmjs.org:** only what was published here. Apps point only their private scope here (`@scope:registry=...`), and npm gets everything else from npmjs.org itself.
+- **No name collisions:** before a name's first publish here, it asks npmjs.org whether that name exists, read-only. A public name is refused, so an app whose `.npmrc` is missing the scope line can't get the other package by mistake. If npmjs.org can't be asked, a new name waits (502) rather than skip the check. New versions of a name already here don't ask.
 - **One registry per scope:** npm picks a registry per scope, so every package a scope's apps install must be here. A scope with public packages on npmjs.org (like `@sparkstone/css`) can't also point here; use a separate scope for private packages, or publish the public ones here too.
 - **Owners:** the app whose token first publishes a package owns it. Only that token can publish more versions or move its tags; any token can install.
 - **Published is final:** a version can't be republished, unpublished or changed, as on npmjs.org.
@@ -60,6 +61,7 @@ The parts of the npm registry API that `npm` and `pnpm` use to install and publi
 | Setting | Default | |
 |---|---|---|
 | `NPM_SCOPES` | any | scopes that may be published, comma-separated (`@sparkstone,@other`). Unscoped packages never can |
+| `NPM_CHECK` | `https://registry.npmjs.org` | the public registry a new name is checked against; `off` for no check |
 | `NPM_URL` | `https://` + the request's host | this registry's address, for tarball links |
 | `NPM_MAX_MB` | 50 | the largest tarball |
 
@@ -69,4 +71,8 @@ The parts of the npm registry API that `npm` and `pnpm` use to install and publi
 
 ## Development
 
-`go test ./...` covers publishing, the owner rules, tags, and a 404 for anything not published here. With `npm` and `pnpm` installed it also publishes with the real `npm` and installs with both, through a stand-in for nook's token check.
+`go test ./...` covers publishing, the owner rules, tags, name collisions (including npmjs.org being down), and a 404 for anything not published here. With `npm` and `pnpm` installed it also publishes with the real `npm` and installs with both, through a stand-in for nook's token check.
+
+## Owning the scope on npmjs.org too
+
+The collision check covers names as they're published. To also stop someone else from taking a name in your scope on npmjs.org later, create the scope there as an organization (free for public packages, and it can stay empty). Then nobody else can publish under it.

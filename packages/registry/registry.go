@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha1"
 	"crypto/sha512"
 	"encoding/base64"
@@ -37,14 +38,41 @@ type doc struct {
 }
 
 type server struct {
-	dir string
-	cfg config
-	now func() time.Time
-	mu  sync.Mutex // publishes and tag changes, one at a time
+	dir    string
+	cfg    config
+	now    func() time.Time
+	mu     sync.Mutex   // publishes and tag changes, one at a time
+	client *http.Client // only for publicExists
 }
 
 func newServer(dir string, cfg config) *server {
-	return &server{dir: dir, cfg: cfg, now: time.Now}
+	return &server{dir: dir, cfg: cfg, now: time.Now, client: &http.Client{Timeout: 15 * time.Second}}
+}
+
+// publicExists says whether the public registry has a package by this name. Read-only, and only asked before a name's
+// first publish here; nothing it answers is stored or served.
+func (s *server) publicExists(ctx context.Context, name string) (bool, error) {
+	if s.cfg.Check == "" {
+		return false, nil
+	}
+	req, err := http.NewRequestWithContext(ctx, "GET", s.cfg.Check+"/"+strings.Replace(name, "/", "%2f", 1), nil)
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("Accept", "application/vnd.npm.install-v1+json")
+	res, err := s.client.Do(req)
+	if err != nil {
+		return false, err
+	}
+	io.Copy(io.Discard, io.LimitReader(res.Body, 1<<20))
+	res.Body.Close()
+	switch {
+	case res.StatusCode == 404:
+		return false, nil
+	case res.StatusCode < 300:
+		return true, nil
+	}
+	return false, fmt.Errorf("%s answered %d", s.cfg.Check, res.StatusCode)
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -312,6 +340,16 @@ func (s *server) publish(w http.ResponseWriter, r *http.Request, app, name strin
 		return
 	}
 	if d == nil {
+		// a name that's public on npmjs.org would collide: an app with the wrong .npmrc would get the other one
+		on, err := s.publicExists(r.Context(), name)
+		if err != nil {
+			fail(w, 502, "couldn't check whether "+name+" is public on "+s.cfg.Check+": "+err.Error())
+			return
+		}
+		if on {
+			fail(w, 409, name+" is already public on "+s.cfg.Check+"; pick a name that isn't, so the two can't be mixed up")
+			return
+		}
 		d = &doc{Name: name, Owner: app, DistTags: map[string]string{}, Versions: map[string]json.RawMessage{}, Time: map[string]string{}}
 	}
 	if d.Owner != app {

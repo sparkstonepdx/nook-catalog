@@ -223,3 +223,41 @@ func TestRealClients(t *testing.T) {
 		}
 	}
 }
+
+// TestNameCollisions: a name that's public on npmjs.org can't be published here, and when npmjs.org can't be asked,
+// a new name waits rather than skip the check. New versions of a name already here don't ask.
+func TestNameCollisions(t *testing.T) {
+	asked := 0
+	public := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked++
+		if r.URL.EscapedPath() == "/@sparkstone%2Fcss" || r.URL.EscapedPath() == "/@sparkstone%2fcss" {
+			io.WriteString(w, `{"name":"@sparkstone/css"}`)
+			return
+		}
+		http.Error(w, `{"error":"Not found"}`, 404)
+	}))
+	defer public.Close()
+	srv, _ := newTestRegistry(t, config{Check: public.URL, Scopes: []string{"@sparkstone"}})
+	tgz := tgzOf(t, map[string]string{"package.json": "{}"})
+	put := func(name, version string) int {
+		code, _ := call(t, "PUT", srv.URL+"/"+strings.Replace(name, "/", "%2f", 1), "build-docs", publishBodyFor(name, version, tgz, nil))
+		return code
+	}
+	if code := put("@sparkstone/css", "9.0.0"); code != 409 {
+		t.Fatalf("a name public on npmjs.org: %d, want 409", code)
+	}
+	if code := put("@sparkstone/kit", "1.0.0"); code != 201 {
+		t.Fatalf("a new private name: %d", code)
+	}
+	before := asked
+	if code := put("@sparkstone/kit", "1.0.1"); code != 201 || asked != before {
+		t.Fatalf("a new version of a name already here: %d, asked npmjs.org %d more times", code, asked-before)
+	}
+	public.Close()
+	if code := put("@sparkstone/other", "1.0.0"); code != 502 {
+		t.Fatalf("npmjs.org unreachable: %d, want 502", code)
+	}
+	if code, _ := call(t, "GET", srv.URL+"/@sparkstone%2fcss", "wordbag", nil); code != 404 {
+		t.Fatalf("nothing from npmjs.org is served: %d", code)
+	}
+}
