@@ -14,6 +14,7 @@ On the nook dashboard, turn on **List in directory** on a site's sheet (or run `
 | `background_color` | behind the icon, and behind the card's picture |
 | `icons` | the one nearest 192px that isn't maskable-only |
 | `screenshots` | the first `narrow` one (else the first) is the card's picture and the phone frame on the app's page; the rest scroll in a row below it |
+| `image` | the site's share image (`og:image`, nook 1.27+): with no screenshots, the card's picture and a banner on the app's page, cropped to fill, never in a phone frame |
 
 A site without a manifest still shows, with its page title and initial.
 
@@ -29,6 +30,6 @@ It reads the list every minute and keeps the last good one if the dashboard is u
 
 ## Development
 
-`go test ./...` covers cleaning the list (a URL that isn't the site's own https address, colors that break out of CSS, other hosts' screenshots, bad icon names), icons only for listed sites, the Open button's text color, escaping, the page's CSP, and a 404 for an app that isn't listed.
+`go test ./...` covers cleaning the list (a URL that isn't the site's own https address, colors that break out of CSS, other hosts' screenshots, bad icon names), icons only for listed sites, the share image as a banner (and another host's dropped), the Open button's text color, escaping, the page's CSP, and a 404 for an app that isn't listed.
 
 The look is a proposal until Adam signs it off.

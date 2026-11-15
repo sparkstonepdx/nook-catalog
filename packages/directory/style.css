@@ -59,6 +59,10 @@ main { padding-bottom: max(48px, env(safe-area-inset-bottom)); }
 .preview { position: relative; display: grid; place-items: center; aspect-ratio: 4 / 5; overflow: hidden; background: var(--app-bg, var(--app-soft)); }
 .preview .shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
 .preview .shot.wide { object-fit: contain; padding: 16px; }
+/* a site's share image (og:image, 1200 x 630 by convention): a banner, cropped to fill, never in a phone */
+.preview.share, .grid .preview.share { aspect-ratio: 40 / 21; }
+.preview .shot.share { object-fit: cover; object-position: center; }
+.banner { margin: 0; border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow-sm); }
 
 .icon { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 22%; overflow: hidden; background: var(--bg); box-shadow: 0 0 0 1px rgb(0 0 0 / .06); }
 .icon img { width: 100%; height: 100%; object-fit: cover; }
@@ -99,7 +103,7 @@ main { padding-bottom: max(48px, env(safe-area-inset-bottom)); }
 @media (min-width: 880px) {
   .app { grid-template-columns: 1fr 360px; column-gap: 64px; align-items: start; }
   .head, .more { grid-column: 1; }
-  .phone { grid-column: 2; grid-row: 1 / span 2; position: sticky; top: 24px; }
+  .phone, .banner { grid-column: 2; grid-row: 1 / span 2; position: sticky; top: 24px; }
 }
 @media (max-width: 599px) { .grid .preview { aspect-ratio: 5 / 4; } }
 @media (prefers-reduced-motion: reduce) { .card { transition: none; } }

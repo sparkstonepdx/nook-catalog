@@ -16,7 +16,7 @@
   <a class="brand" href="/"><img src="/app-icon.svg" alt="" width="24" height="24">{{.Title}}</a>
 </header>{{end}}
 {{define "icon"}}<span class="icon{{if .Big}} big{{end}}" {{if .S.Background}}style="background: {{css .S.Background}}"{{end}}>{{if .S.Icon}}<img src="/icon/{{.S.Icon}}" alt="">{{else}}<span class="initial">{{initial .S.Name}}</span>{{end}}</span>{{end}}
-{{define "preview"}}<span class="preview" {{if .Background}}style="--app-bg: {{css .Background}}"{{end}}>
+{{define "preview"}}<span class="preview{{with hero .}} {{.FormFactor}}{{end}}" {{if .Background}}style="--app-bg: {{css .Background}}"{{end}}>
   {{with hero .}}<img class="shot {{.FormFactor}}" src="{{.Src}}" alt="" loading="lazy">{{else}}{{template "icon" (iconOf . true)}}{{end}}
 </span>{{end}}
 <main>
@@ -29,7 +29,7 @@
       <a class="open big" href="{{.URL}}">Open {{if .ShortName}}{{.ShortName}}{{else}}{{.Name}}{{end}}</a>
       <p class="muted small">{{.Host}}{{if .Installable}} · Installable: once it's open, add it to your home screen.{{end}}</p>
     </div>
-    {{if hero .}}<figure class="phone">{{template "preview" .}}</figure>{{end}}
+    {{with hero .}}<figure class="{{if eq .FormFactor "share"}}banner{{else}}phone{{end}}">{{template "preview" $.Site}}</figure>{{end}}
     {{if gt (len .Screenshots) 1}}
     <section class="more" aria-labelledby="shots">
       <h2 id="shots">Screenshots</h2>

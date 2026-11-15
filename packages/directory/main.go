@@ -40,6 +40,7 @@ type site struct {
 	Background  string `json:"background"`
 	Icon        string `json:"icon"`
 	Screenshots []shot `json:"screenshots"`
+	Image       string `json:"image"` // the page's share image (og:image), used when there are no screenshots
 	Installable bool   `json:"installable"`
 }
 
@@ -114,6 +115,9 @@ func (d *dir) refresh() {
 			}
 		}
 		s.Screenshots = shots
+		if iu, err := url.Parse(s.Image); err != nil || iu.Scheme != "https" || iu.Host != s.Host {
+			s.Image = ""
+		}
 		clean = append(clean, s)
 	}
 	d.mu.Lock()
@@ -256,6 +260,9 @@ func handler(d *dir, title, intro string) *http.ServeMux {
 			}
 			if len(s.Screenshots) > 0 {
 				return &s.Screenshots[0]
+			}
+			if s.Image != "" { // no screenshots: the share image the site gives links (usually 1200 x 630)
+				return &shot{Src: s.Image, FormFactor: "share"}
 			}
 			return nil
 		},
