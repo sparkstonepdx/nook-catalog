@@ -3,8 +3,8 @@
 A private npm registry for the apps on a [nook](https://github.com/sparkstonepdx/nook) server: publish and install your own packages with the `NOOK_TOKEN` each app's CI already has.
 
 - **No new secrets:** nook checks the token before a request gets here (`{"auth": "nook-token"}`), and this server only sees which app is asking. Every path needs a token, so nothing here is public.
-- **One scope, two registries:** npm picks a registry per scope, so a package not published here is passed through from the public registry. `@sparkstone/kit` can live here while `@sparkstone/css` stays on npmjs.org, both under `@sparkstone:registry`.
-- **No shadowing:** a name the public registry already has can't be published here, since it would hide the public one from every app on the server.
+- **Never talks to npmjs.org:** it serves only what was published here, and makes no requests of its own. Apps point only their private scope here (`@scope:registry=...`), and npm gets everything else from npmjs.org itself.
+- **One registry per scope:** npm picks a registry per scope, so every package a scope's apps install must be here. A scope with public packages on npmjs.org (like `@sparkstone/css`) can't also point here; use a separate scope for private packages, or publish the public ones here too.
 - **Owners:** the app whose token first publishes a package owns it. Only that token can publish more versions or move its tags; any token can install.
 - **Published is final:** a version can't be republished, unpublished or changed, as on npmjs.org.
 
@@ -60,11 +60,8 @@ The parts of the npm registry API that `npm` and `pnpm` use to install and publi
 | Setting | Default | |
 |---|---|---|
 | `NPM_SCOPES` | any | scopes that may be published, comma-separated (`@sparkstone,@other`). Unscoped packages never can |
-| `NPM_UPSTREAM` | `https://registry.npmjs.org` | where other packages come from, and what's checked before a new name; `off` for neither |
 | `NPM_URL` | `https://` + the request's host | this registry's address, for tarball links |
 | `NPM_MAX_MB` | 50 | the largest tarball |
-
-If the public registry can't be reached, publishing a new name fails rather than skip the shadowing check. New versions of names already here don't ask it.
 
 ## Data
 
@@ -72,4 +69,4 @@ If the public registry can't be reached, publishing a new name fails rather than
 
 ## Development
 
-`go test ./...` covers publishing, the owner and shadowing rules, tags and the pass-through. With `npm` and `pnpm` installed it also publishes with the real `npm` and installs with both, through a stand-in for nook's token check.
+`go test ./...` covers publishing, the owner rules, tags, and a 404 for anything not published here. With `npm` and `pnpm` installed it also publishes with the real `npm` and installs with both, through a stand-in for nook's token check.

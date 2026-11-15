@@ -1,7 +1,7 @@
 {
   "id": "registry",
   "name": "Registry",
-  "description": "A private npm registry for your apps: publish and install with NOOK_TOKEN, everything else from npmjs.org.",
+  "description": "A private npm registry for your apps: publish and install your own scope with NOOK_TOKEN. It never talks to npmjs.org.",
   "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/registry",
   "license": "MIT",
   "kind": "web",

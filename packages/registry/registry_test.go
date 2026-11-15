@@ -34,20 +34,6 @@ func nookAuth(h http.Handler) http.Handler {
 	})
 }
 
-// fakeUpstream has one public package, @sparkstone/css.
-func fakeUpstream(t *testing.T) *httptest.Server {
-	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.EscapedPath() == "/@sparkstone%2Fcss" {
-			w.Header().Set("Content-Type", "application/json")
-			io.WriteString(w, `{"name":"@sparkstone/css","dist-tags":{"latest":"4.0.0"},"versions":{}}`)
-			return
-		}
-		http.Error(w, `{"error":"Not found"}`, 404)
-	}))
-	t.Cleanup(up.Close)
-	return up
-}
-
 func newTestRegistry(t *testing.T, cfg config) (*httptest.Server, string) {
 	dir := t.TempDir()
 	if cfg.MaxBytes == 0 {
@@ -98,8 +84,7 @@ func call(t *testing.T, method, url, app string, body []byte) (int, []byte) {
 }
 
 func TestPublishAndInstall(t *testing.T) {
-	up := fakeUpstream(t)
-	srv, _ := newTestRegistry(t, config{Upstream: up.URL, Scopes: []string{"@sparkstone"}})
+	srv, _ := newTestRegistry(t, config{Scopes: []string{"@sparkstone"}})
 	tgz := tgzOf(t, map[string]string{"package.json": `{"name":"@sparkstone/kit","version":"0.2.0"}`})
 
 	if code, _ := call(t, "GET", srv.URL+"/@sparkstone%2fkit", "", nil); code != 401 {
@@ -131,18 +116,14 @@ func TestPublishAndInstall(t *testing.T) {
 		t.Fatalf("whoami: %d %s", code, b)
 	}
 
-	// public packages in the same scope come through from upstream
-	if code, b := call(t, "GET", srv.URL+"/@sparkstone%2fcss", "wordbag", nil); code != 200 || !strings.Contains(string(b), "4.0.0") {
-		t.Fatalf("upstream: %d %s", code, b)
-	}
-	if code, _ := call(t, "GET", srv.URL+"/@sparkstone%2fnothing", "wordbag", nil); code != 404 {
-		t.Fatalf("missing everywhere: %d", code)
+	// only what's published here: nothing comes from npmjs.org
+	if code, _ := call(t, "GET", srv.URL+"/@sparkstone%2fcss", "wordbag", nil); code != 404 {
+		t.Fatalf("a package not published here: %d, want 404", code)
 	}
 }
 
 func TestPublishRules(t *testing.T) {
-	up := fakeUpstream(t)
-	srv, _ := newTestRegistry(t, config{Upstream: up.URL, Scopes: []string{"@sparkstone"}})
+	srv, _ := newTestRegistry(t, config{Scopes: []string{"@sparkstone"}})
 	tgz := tgzOf(t, map[string]string{"package.json": "{}"})
 	put := func(app, name, version string) (int, string) {
 		code, b := call(t, "PUT", srv.URL+"/"+strings.Replace(name, "/", "%2f", 1), app, publishBodyFor(name, version, tgz, map[string]string{"latest": version}))
@@ -157,7 +138,6 @@ func TestPublishRules(t *testing.T) {
 	}{
 		{"build-docs", "@sparkstone/kit", "1.0.0", 409}, // same version again
 		{"wordbag", "@sparkstone/kit", "1.0.1", 403},    // someone else's package
-		{"build-docs", "@sparkstone/css", "9.0.0", 409}, // would shadow the public one
 		{"build-docs", "@other/kit", "1.0.0", 403},      // not one of the scopes
 		{"build-docs", "leftpad", "1.0.0", 403},         // unscoped
 	}
@@ -191,14 +171,6 @@ func TestPublishRules(t *testing.T) {
 	}
 	if code, _ := call(t, "DELETE", srv.URL+"/@sparkstone%2fkit/-rev/1", "build-docs", nil); code != 405 {
 		t.Errorf("unpublish: %d", code)
-	}
-}
-
-func TestUpstreamDownRefusesNewNames(t *testing.T) {
-	srv, _ := newTestRegistry(t, config{Upstream: "http://127.0.0.1:1"})
-	tgz := tgzOf(t, map[string]string{"package.json": "{}"})
-	if code, _ := call(t, "PUT", srv.URL+"/@a%2fb", "x", publishBodyFor("@a/b", "1.0.0", tgz, nil)); code != 502 {
-		t.Fatalf("got %d, want 502 when the public registry can't be checked", code)
 	}
 }
 

@@ -12,7 +12,6 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -38,15 +37,14 @@ type doc struct {
 }
 
 type server struct {
-	dir    string
-	cfg    config
-	client *http.Client
-	now    func() time.Time
-	mu     sync.Mutex // publishes and tag changes, one at a time
+	dir string
+	cfg config
+	now func() time.Time
+	mu  sync.Mutex // publishes and tag changes, one at a time
 }
 
 func newServer(dir string, cfg config) *server {
-	return &server{dir: dir, cfg: cfg, client: &http.Client{Timeout: 30 * time.Second}, now: time.Now}
+	return &server{dir: dir, cfg: cfg, now: time.Now}
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -191,7 +189,8 @@ func (s *server) packument(w http.ResponseWriter, r *http.Request, name string) 
 		return
 	}
 	if d == nil {
-		s.upstream(w, r, name)
+		// only what's published here: npm asks npmjs.org itself for anything outside the scopes pointed here
+		fail(w, 404, "not found")
 		return
 	}
 	versions := map[string]any{}
@@ -206,60 +205,6 @@ func (s *server) packument(w http.ResponseWriter, r *http.Request, name string) 
 		versions[v] = m
 	}
 	writeJSON(w, 200, map[string]any{"_id": name, "name": name, "dist-tags": d.DistTags, "versions": versions, "time": d.Time})
-}
-
-// upstream passes a package that isn't published here through from the public registry.
-func (s *server) upstream(w http.ResponseWriter, r *http.Request, name string) {
-	if s.cfg.Upstream == "" {
-		fail(w, 404, "not found")
-		return
-	}
-	req, err := http.NewRequestWithContext(r.Context(), "GET", s.cfg.Upstream+"/"+url.PathEscape(name), nil)
-	if err != nil {
-		fail(w, 500, err.Error())
-		return
-	}
-	if a := r.Header.Get("Accept"); a != "" {
-		req.Header.Set("Accept", a)
-	}
-	res, err := s.client.Do(req)
-	if err != nil {
-		fail(w, 502, "upstream: "+err.Error())
-		return
-	}
-	defer res.Body.Close()
-	if ct := res.Header.Get("Content-Type"); ct != "" {
-		w.Header().Set("Content-Type", ct)
-	}
-	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(res.StatusCode)
-	if r.Method != "HEAD" {
-		io.Copy(w, res.Body)
-	}
-}
-
-// onUpstream says whether the public registry already has a package by this name.
-func (s *server) onUpstream(r *http.Request, name string) (bool, error) {
-	if s.cfg.Upstream == "" {
-		return false, nil
-	}
-	req, err := http.NewRequestWithContext(r.Context(), "GET", s.cfg.Upstream+"/"+url.PathEscape(name), nil)
-	if err != nil {
-		return false, err
-	}
-	req.Header.Set("Accept", "application/vnd.npm.install-v1+json")
-	res, err := s.client.Do(req)
-	if err != nil {
-		return false, err
-	}
-	res.Body.Close()
-	switch {
-	case res.StatusCode == 404:
-		return false, nil
-	case res.StatusCode < 300:
-		return true, nil
-	}
-	return false, fmt.Errorf("%s answered %d", s.cfg.Upstream, res.StatusCode)
 }
 
 func (s *server) tarball(w http.ResponseWriter, r *http.Request, name, file string) {
@@ -367,16 +312,6 @@ func (s *server) publish(w http.ResponseWriter, r *http.Request, app, name strin
 		return
 	}
 	if d == nil {
-		// a name the public registry has would shadow it for every app here, so it stays there
-		on, err := s.onUpstream(r, name)
-		if err != nil {
-			fail(w, 502, "couldn't check the public registry for "+name+": "+err.Error())
-			return
-		}
-		if on {
-			fail(w, 409, name+" is on "+s.cfg.Upstream+"; publishing it here would hide that one from every app")
-			return
-		}
 		d = &doc{Name: name, Owner: app, DistTags: map[string]string{}, Versions: map[string]json.RawMessage{}, Time: map[string]string{}}
 	}
 	if d.Owner != app {
