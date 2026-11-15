@@ -9,7 +9,7 @@
   "health": "/health",
   "memory": "128M",
   "binary": "files",
-  "auth": "nook-token",
+  "auth": "nook-login",
   "open": ["/s/*", "/health"],
   "env": [
     { "key": "FILES_MAX_MB", "desc": "Largest upload in MB, up to 2047", "default": "2047" },
