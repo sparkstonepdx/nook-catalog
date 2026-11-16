@@ -1,7 +1,7 @@
 {
   "id": "registry",
   "name": "Registry",
-  "description": "A private npm registry for your apps: publish and install your own scope with NOOK_TOKEN. The scope's public packages pass through from npmjs.org, and names public there can't be taken.",
+  "description": "A private npm and container image registry for your apps: publish and install your own scope, push and pull images, with NOOK_TOKEN. The scope's public packages pass through from npmjs.org, and names public there can't be taken.",
   "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/registry",
   "license": "MIT",
   "kind": "web",
@@ -12,7 +12,8 @@
   "auth": "nook-token",
   "env": [
     { "key": "NPM_SCOPES", "desc": "Scopes your apps may publish, comma-separated, like @sparkstone", "required": true },
-    { "key": "NPM_URL", "desc": "Public URL of this registry", "default": "https://{site_host}" }
+    { "key": "NPM_URL", "desc": "Public URL of this registry", "default": "https://{site_host}" },
+    { "key": "OCI_MAX_MB", "desc": "Largest container image layer, in MB", "default": "2048" }
   ],
   "files": { "run": "#!/bin/sh\nexec ./registry\n" },
   "source": {

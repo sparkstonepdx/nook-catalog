@@ -23,6 +23,8 @@ type config struct {
 	Scopes   []string // NPM_SCOPES: scopes that may be published here, like @sparkstone; empty for any scope
 	Public   string   // NPM_PUBLIC: the public registry: public packages in NPM_SCOPES come from it, and new names are checked against it; "off" for neither
 	MaxBytes int64    // NPM_MAX_MB: the largest publish
+	// OCI_MAX_MB: the largest image layer
+	MaxImageBytes int64
 }
 
 func env(k, def string) string {
@@ -34,7 +36,8 @@ func env(k, def string) string {
 
 func loadConfig() config {
 	mb, _ := strconv.Atoi(env("NPM_MAX_MB", "50"))
-	cfg := config{URL: strings.TrimRight(env("NPM_URL", ""), "/"), Public: strings.TrimRight(env("NPM_PUBLIC", "https://registry.npmjs.org"), "/"), MaxBytes: int64(mb) << 20}
+	omb, _ := strconv.Atoi(env("OCI_MAX_MB", "2048"))
+	cfg := config{URL: strings.TrimRight(env("NPM_URL", ""), "/"), Public: strings.TrimRight(env("NPM_PUBLIC", "https://registry.npmjs.org"), "/"), MaxBytes: int64(mb) << 20, MaxImageBytes: int64(omb) << 20}
 	if cfg.Public == "off" {
 		cfg.Public = ""
 	}

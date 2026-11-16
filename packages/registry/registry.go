@@ -114,6 +114,19 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	app := r.Header.Get("X-Nook-App")
+	if p == "/v2" || strings.HasPrefix(p, "/v2/") { // container images (oci.go)
+		if !appRE.MatchString(app) {
+			w.Header().Set("WWW-Authenticate", `Basic realm="nook"`)
+			ociFail(w, 401, "UNAUTHORIZED", "docker login with any username and your app's NOOK_TOKEN as the password")
+			return
+		}
+		if p == "/v2" {
+			p = "/v2/"
+			r.URL.Path = p
+		}
+		s.serveOCI(w, r, app)
+		return
+	}
 	if !appRE.MatchString(app) {
 		w.Header().Set("WWW-Authenticate", `Bearer realm="nook"`)
 		fail(w, 401, "send your app's NOOK_TOKEN: //HOST/:_authToken=${NOOK_TOKEN} in .npmrc")
