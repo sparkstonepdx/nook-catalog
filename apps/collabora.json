@@ -4,6 +4,7 @@
   "description": "Edit Word, Excel and PowerPoint files in the browser, together, from a file app that opens it (OpenCloud). LibreOffice underneath, from Collabora's own packages.",
   "homepage": "https://www.collaboraonline.com/code/",
   "license": "MPL-2.0",
+  "version": "CODE",
   "kind": "web",
   "site": "office",
   "health": "/hosting/discovery",
