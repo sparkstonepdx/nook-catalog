@@ -117,11 +117,12 @@ function AppPage(props: { app: CatalogApp }) {
       <section class="section">
         <h2>Details</h2>
         <dl class="facts card">
-          <dt>Kind</dt><dd>{{ web: "A website at its own address", service: "A service other apps use", cron: "Runs on a schedule" }[a().kind || "web"]}</dd>
+          <dt>Kind</dt><dd>{{ web: "A website at its own address", service: "A service other apps use", cron: "Runs on a schedule", runtime: "Something other apps run, like a language" }[a().kind || "web"]}</dd>
           <Show when={a().license}><dt>License</dt><dd>{a().license}</dd></Show>
           <Show when={a().memory}><dt>Memory</dt><dd>up to {a().memory}</dd></Show>
           <Show when={arches()}><dt>Runs on</dt><dd>{arches()}</dd></Show>
           <Show when={a().needs?.length}><dt>Needs</dt><dd>{a().needs!.join(", ")}</dd></Show>
+          <Show when={a().ports?.length}><dt>Public ports</dt><dd>{a().ports!.join(", ")}</dd></Show>
         </dl>
       </section>
 
