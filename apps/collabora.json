@@ -1,0 +1,31 @@
+{
+  "id": "collabora",
+  "name": "Collabora Online",
+  "description": "Edit Word, Excel and PowerPoint files in the browser, together, from a file app that opens it (OpenCloud). LibreOffice underneath, from Collabora's own packages.",
+  "homepage": "https://www.collaboraonline.com/code/",
+  "license": "MPL-2.0",
+  "kind": "web",
+  "site": "office",
+  "health": "/hosting/discovery",
+  "memory": "2G",
+  "apt": {
+    "packages": [
+      "coolwsd",
+      "code-brand"
+    ],
+    "repo": "collabora"
+  },
+  "mask": [
+    "coolwsd"
+  ],
+  "env": [
+    {
+      "key": "WOPI_HOSTS",
+      "desc": "The address of the file app allowed to open documents here, like cloud.example.com",
+      "required": true
+    }
+  ],
+  "files": {
+    "run": "#!/bin/sh\nset -e\n# coolwsd runs as this app's user, not the package's cool user, with its working folders in data/.\n# No capabilities or mount namespaces in nook's sandbox, so each document is isolated by Landlock instead.\nmkdir -p \"$HOME/data/child-roots\" \"$HOME/data/cache\"\nhosts=\"\"\ni=0\nfor h in $(echo \"$WOPI_HOSTS\" | tr ',' ' ') 127.0.0.1; do\n  hosts=\"$hosts --o:storage.wopi.host[$i]=$(echo \"$h\" | sed 's/[.]/\\\\./g')\"\n  i=$((i + 1))\ndone\nexec /usr/bin/coolwsd --disable-cool-user-checking --port=\"$PORT\" \\\n  --o:net.listen=loopback --o:net.proto=IPv4 \\\n  --o:ssl.enable=false --o:ssl.termination=true \\\n  --o:server_name=\"$SITE_HOST\" \\\n  --o:child_root_path=\"$HOME/data/child-roots\" --o:cache_files.path=\"$HOME/data/cache\" \\\n  --o:mount_jail_tree=false --o:security.capabilities=false \\\n  --o:admin_console.enable=false --o:logging.file[@enable]=false \\\n  $hosts\n"
+  }
+}
