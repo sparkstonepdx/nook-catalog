@@ -1,7 +1,7 @@
 import { For, Show, createSignal, onCleanup, onSettled } from "solid-js";
 import { apps, appPath, generated, imageURL, installLink, official, repo, type App as CatalogApp } from "./catalog";
 
-const NOOK = "https://github.com/sparkstonepdx/nook";
+const NOOK = "https://nook.sparkstonepdx.com";
 const KEY = "nook-dashboard";
 
 // One component for every page, picked by path: the prerender renders each path, and the client hydrates
@@ -15,7 +15,10 @@ export default function App(props: { path: string }) {
           <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 60V30a20 20 0 0 1 40 0v30Z M19 32a5 5 0 0 1 5-5h16a5 5 0 0 1 5 5v16a5 5 0 0 1-5 5H24a5 5 0 0 1-5-5Z" fill="currentColor" fill-rule="evenodd" /><rect x="25.5" y="33.5" width="13" height="13" rx="3" fill="#e0a43a" /></svg>
           nook <span class="brand-sub">apps</span>
         </a>
-        <a class="btn btn-ghost btn-sm" href={NOOK}>Get nook</a>
+        <nav class="top-links" aria-label="nook">
+          <a class="btn btn-ghost btn-sm" href={NOOK}>What's nook?</a>
+          <a class="btn btn-ghost btn-sm" href={`${NOOK}/docs/`}>Docs</a>
+        </nav>
       </header>
       <main class="container page">
         <Show when={props.path === "/"} fallback={<Show when={app()} fallback={<NotFound />}>{(a) => <AppPage app={a()} />}</Show>}>
@@ -34,29 +37,47 @@ function Home() {
   return (
     <>
       <section class="hero">
-        <p class="eyebrow">{official ? "Official catalog" : "Community catalog"}</p>
-        <h1>Apps for your nook</h1>
-        <p class="lede">Each one installs on your own server as its own app, with its own user, folder and limits. Updates follow the policy you pick and roll back by themselves if they don't come up.</p>
+        <h1>Apps you own, on your own server</h1>
+        <p class="lede">Analytics, push alerts, file sharing, a database: install them on your nook in a couple of taps. Each runs as its own app with its own space, and updates itself, backing out if a new version doesn't start.</p>
+        <Show when={official} fallback={<p class="hint">A community catalog, {repo}. Your nook asks you to trust it before installing from it.</p>}>
+          <p class="trust"><span class="badge badge-success verified"><span aria-hidden="true">✓</span> Verified</span> Every app here is checked: downloads are pinned by their hash and the list is signed.</p>
+        </Show>
       </section>
-      <ul class="list">
+      <ul class="shelf" aria-label="Apps">
         <For each={apps}>
           {(a) => (
-            <li><a class="row" href={appPath(a.id)}>
+            <li><a class="shelf-card" href={appPath(a.id)}>
               <AppIcon app={a} />
-              <span class="row-main"><span>{a.name} <Verified /></span><small>{a.description}</small></span>
-              <span class="row-end"><span class="mono">{a.version}</span><span class="chev">›</span></span>
+              <span class="shelf-text"><span class="shelf-name">{a.name}</span><span class="shelf-blurb">{summary(a.description)}</span></span>
             </a></li>
           )}
         </For>
       </ul>
+      <section class="no-nook">
+        <h2>No nook yet?</h2>
+        <p>nook turns any Linux server into a home for your sites and apps. <a class="link" href={NOOK}>See what it does</a> or <a class="link" href={`${NOOK}/docs/#install`}>install it</a>.</p>
+      </section>
       <p class="hint">{apps.length} {apps.length === 1 ? "app" : "apps"}, checked {new Date(generated).toISOString().slice(0, 10)}.</p>
     </>
   );
 }
 
+// The short line a card shows: the description up to its first colon or full stop.
+function summary(d: string) {
+  const m = d.match(/^[^:.]{12,}?[:.](\s|$)/);
+  return m ? m[0].replace(/[:.]\s*$/, "") : d;
+}
+
+// An app without an icon gets its initial on a coin of its own colour, picked from its id.
+function coinHue(id: string) {
+  let h = 0;
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return Math.round((h * 137.508) % 360); // golden angle: neighbours land far apart on the wheel
+}
+
 function AppIcon(props: { app: CatalogApp; big?: boolean }) {
   return (
-    <Show when={props.app.icon} fallback={<span class={["app-coin", { big: props.big }]} aria-hidden="true">{props.app.name.slice(0, 1)}</span>}>
+    <Show when={props.app.icon} fallback={<span class={["app-coin", { big: props.big }]} style={{ "--hue": coinHue(props.app.id) }} aria-hidden="true">{props.app.name.slice(0, 1).toUpperCase()}</span>}>
       {(i) => <img class={["app-coin", { big: props.big }]} src={imageURL(i())} alt="" width={props.big ? 64 : 44} height={props.big ? 64 : 44} />}
     </Show>
   );
@@ -96,11 +117,12 @@ function AppPage(props: { app: CatalogApp }) {
       <section class="section">
         <h2>Details</h2>
         <dl class="facts card">
-          <dt>Kind</dt><dd>{{ web: "A website at its own address", service: "A service other apps use", cron: "Runs on a schedule" }[a().kind || "web"]}</dd>
+          <dt>Kind</dt><dd>{{ web: "A website at its own address", service: "A service other apps use", cron: "Runs on a schedule", runtime: "Something other apps run, like a language" }[a().kind || "web"]}</dd>
           <Show when={a().license}><dt>License</dt><dd>{a().license}</dd></Show>
           <Show when={a().memory}><dt>Memory</dt><dd>up to {a().memory}</dd></Show>
           <Show when={arches()}><dt>Runs on</dt><dd>{arches()}</dd></Show>
           <Show when={a().needs?.length}><dt>Needs</dt><dd>{a().needs!.join(", ")}</dd></Show>
+          <Show when={a().ports?.length}><dt>Public ports</dt><dd>{a().ports!.join(", ")}</dd></Show>
         </dl>
       </section>
 

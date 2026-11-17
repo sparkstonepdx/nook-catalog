@@ -6,7 +6,7 @@ export type Image = { path: string; sha256?: string; alt?: string; width?: numbe
 export type App = {
   id: string; name: string; description: string; homepage?: string; repo?: string; license?: string; version: string;
   icon?: Image; screenshots?: Image[];
-  kind?: string; needs?: string[]; env?: EnvField[]; memory?: string; artifacts: Record<string, { url: string }>;
+  kind?: string; needs?: string[]; ports?: number[]; env?: EnvField[]; memory?: string; artifacts: Record<string, { url: string }>;
 };
 
 export const apps: App[] = [...(index.apps as App[])].sort((a, b) => a.name.localeCompare(b.name));
