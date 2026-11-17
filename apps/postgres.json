@@ -1,0 +1,41 @@
+{
+  "id": "postgres",
+  "name": "PostgreSQL",
+  "description": "A PostgreSQL server your apps share: each app that needs postgres gets a login and a database of its own, and only sees DATABASE_URL. Pick the major version; each runs as its own app, so 16 and 17 can sit side by side.",
+  "homepage": "https://www.postgresql.org",
+  "license": "PostgreSQL",
+  "repo": "https://www.postgresql.org/ftp/source/",
+  "kind": "service",
+  "site": "db",
+  "memory": "512M",
+  "versions": [
+    "16",
+    "17",
+    "18"
+  ],
+  "apt": {
+    "packages": [
+      "postgresql-{version}"
+    ],
+    "repo": "pgdg"
+  },
+  "mask": [
+    "postgresql@{version}-main",
+    "postgresql"
+  ],
+  "provides": {
+    "postgres": {
+      "desc": "PostgreSQL {version}: a login and a database per app",
+      "env": {
+        "DATABASE_URL": ""
+      },
+      "provision": "./provision.sh",
+      "deprovision": "./deprovision.sh"
+    }
+  },
+  "files": {
+    "run": "#!/bin/sh\n# PostgreSQL {version} as a nook app: its cluster in data/pg, owned by this app's user, on $PORT (127.0.0.1 only)\n# and a socket only this user can reach, for the provision scripts.\nset -eu\nBIN=/usr/lib/postgresql/{version}/bin\nDATA=\"$HOME/data/pg\"\nSOCK=\"$HOME/data/run\"\nmkdir -p \"$SOCK\"\nchmod 700 \"$SOCK\"\nif [ ! -s \"$DATA/PG_VERSION\" ]; then\n  \"$BIN/initdb\" -D \"$DATA\" -U \"$(id -un)\" --auth-local=peer --auth-host=scram-sha-256 -E UTF8 --locale=C.UTF-8 >/dev/null\nfi\nexec \"$BIN/postgres\" -D \"$DATA\" -k \"$SOCK\" -p \"$PORT\" -c listen_addresses=127.0.0.1 -c unix_socket_permissions=0700\n",
+    "provision.sh": "#!/bin/sh\n# Called by nook when an app is bound: a login and a database of its own, and its DATABASE_URL.\nset -eu\nAPP=\"$1\"\nBIN=/usr/lib/postgresql/{version}/bin\nNAME=\"app_$(printf %s \"$APP\" | tr - _)\"\nPW=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \\n')\nq() { \"$BIN/psql\" -h \"$HOME/data/run\" -p \"$PORT\" -d postgres -v ON_ERROR_STOP=1 -qtAc \"$1\"; }\nif [ \"$(q \"select 1 from pg_roles where rolname = '$NAME'\")\" = 1 ]; then\n  q \"alter role $NAME with login password '$PW'\" >/dev/null\nelse\n  q \"create role $NAME login password '$PW'\" >/dev/null\nfi\n[ \"$(q \"select 1 from pg_database where datname = '$NAME'\")\" = 1 ] || q \"create database $NAME owner $NAME\" >/dev/null\necho \"DATABASE_URL=postgres://$NAME:$PW@127.0.0.1:$PORT/$NAME\"\n",
+    "deprovision.sh": "#!/bin/sh\n# Called by nook when a binding goes: the login stops working; the database stays until you drop it.\nset -eu\nNAME=\"app_$(printf %s \"$1\" | tr - _)\"\n/usr/lib/postgresql/{version}/bin/psql -h \"$HOME/data/run\" -p \"$PORT\" -d postgres -v ON_ERROR_STOP=1 -qtAc \"alter role $NAME nologin\" >/dev/null\n"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "pgdg": {
+    "url": "https://apt.postgresql.org/pub/repos/apt",
+    "suite": "{codename}-pgdg",
+    "components": [
+      "main"
+    ],
+    "key": "B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8",
+    "keyUrl": "https://www.postgresql.org/media/keys/ACCC4CF8.asc"
+  }
+}
