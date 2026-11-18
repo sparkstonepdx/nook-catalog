@@ -1,0 +1,33 @@
+{
+  "id": "mailrelay",
+  "name": "Mail relay",
+  "description": "Email for every app on this server through one Amazon SES, SendGrid or SMTP account. Each bound app gets SMTP_URL with its own token, never the account's login; mail goes out only from your domains, with a limit per app.",
+  "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/mailrelay",
+  "license": "MIT",
+  "kind": "service",
+  "site": "mail",
+  "memory": "64M",
+  "binary": "mailrelay",
+  "env": [
+    { "key": "MAIL_PROVIDER", "desc": "ses, sendgrid, or smtp for any other relay", "default": "ses", "required": true },
+    { "key": "FROM_DOMAINS", "desc": "Domains apps may send from, like example.com (subdomains too)", "required": true },
+    { "key": "SES_REGION", "desc": "SES: the region, like us-west-2" },
+    { "key": "SES_SMTP_USERNAME", "desc": "SES: the SMTP username from the SES console (not an access key)" },
+    { "key": "SES_SMTP_PASSWORD", "desc": "SES: the SMTP password from the SES console", "secret": true },
+    { "key": "SENDGRID_API_KEY", "desc": "SendGrid: an API key with Mail Send", "secret": true },
+    { "key": "SMTP_HOST", "desc": "smtp: the relay's host, like smtp.fastmail.com (port 587 unless you add one)" },
+    { "key": "SMTP_USERNAME", "desc": "smtp: the login" },
+    { "key": "SMTP_PASSWORD", "desc": "smtp: the password", "secret": true },
+    { "key": "SENDS_PER_HOUR", "desc": "Recipients one app may send to an hour", "default": "200" }
+  ],
+  "provides": {
+    "email": { "desc": "sends through Amazon SES, SendGrid or an SMTP relay", "env": { "SMTP_URL": "smtp://nook:{token}@{host}:{port}" } }
+  },
+  "files": { "run": "#!/bin/sh\nexec ./mailrelay\n" },
+  "source": {
+    "github": "sparkstonepdx/nook-catalog",
+    "tagPrefix": "mailrelay-",
+    "assets": { "amd64": "_linux_amd64\\.tar\\.gz$", "arm64": "_linux_arm64\\.tar\\.gz$" },
+    "format": "tar.gz"
+  }
+}
