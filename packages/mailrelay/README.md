@@ -15,10 +15,14 @@ and sends as it would to any mail server. No app holds the provider's login.
 - **On to the provider:** over STARTTLS (required unless the provider is on the same machine), port 587.
 
 ## Settings
-| `MAIL_PROVIDER` | Needs |
-|---|---|
-| `ses` | `SES_REGION`, `SES_SMTP_USERNAME`, `SES_SMTP_PASSWORD` (SMTP credentials from the SES console, not an access key) |
-| `sendgrid` | `SENDGRID_API_KEY` |
-| `smtp` | `SMTP_HOST` (`:587` unless given), `SMTP_USERNAME`, `SMTP_PASSWORD` |
+One SMTP login, whichever provider it's from. Amazon SES and SendGrid are plain SMTP too:
+
+| | `SMTP_HOST` | `SMTP_USERNAME` | `SMTP_PASSWORD` |
+|---|---|---|---|
+| Amazon SES | `email-smtp.REGION.amazonaws.com` | SMTP username from SES > SMTP settings (not an access key) | its SMTP password |
+| SendGrid | `smtp.sendgrid.net` | `apikey` | an API key with Mail Send |
+| Any other | its host (`:587` unless given) | its login | its password |
+
+Plus `FROM_DOMAINS` (required) and `SENDS_PER_HOUR`.
 
 It listens on `127.0.0.1:$PORT` only, and nook's firewall lets only bound apps reach it. Each message is logged with the app, sender and recipient count, never the content.

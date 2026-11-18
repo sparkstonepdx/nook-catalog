@@ -117,20 +117,23 @@ func TestAuthLogin(t *testing.T) {
 }
 
 func TestLoadConfig(t *testing.T) {
-	t.Setenv("MAIL_PROVIDER", "ses")
-	t.Setenv("SES_REGION", "us-west-2")
-	t.Setenv("SES_SMTP_USERNAME", "AKIA")
-	t.Setenv("SES_SMTP_PASSWORD", "secret")
+	t.Setenv("SMTP_HOST", "email-smtp.us-west-2.amazonaws.com")
+	t.Setenv("SMTP_USERNAME", "AKIA")
+	t.Setenv("SMTP_PASSWORD", "secret")
 	t.Setenv("FROM_DOMAINS", "example.com, @shop.example.org")
 	c, err := loadConfig()
 	if err != nil || c.Upstream != "email-smtp.us-west-2.amazonaws.com:587" || len(c.FromDomains) != 2 || c.FromDomains[1] != "shop.example.org" {
 		t.Fatalf("%+v %v", c, err)
 	}
-	t.Setenv("MAIL_PROVIDER", "sendgrid")
-	t.Setenv("SENDGRID_API_KEY", "SG.x")
-	if c, err := loadConfig(); err != nil || c.Upstream != "smtp.sendgrid.net:587" || c.User != "apikey" {
+	t.Setenv("SMTP_HOST", "smtp.example.net:2525")
+	if c, err := loadConfig(); err != nil || c.Upstream != "smtp.example.net:2525" {
 		t.Fatalf("%+v %v", c, err)
 	}
+	t.Setenv("SMTP_PASSWORD", "")
+	if _, err := loadConfig(); err == nil {
+		t.Fatal("SMTP_PASSWORD is required")
+	}
+	t.Setenv("SMTP_PASSWORD", "secret")
 	t.Setenv("FROM_DOMAINS", "")
 	if _, err := loadConfig(); err == nil {
 		t.Fatal("FROM_DOMAINS is required")
