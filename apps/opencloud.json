@@ -1,0 +1,36 @@
+{
+  "id": "opencloud",
+  "name": "OpenCloud",
+  "description": "Files for a team: folders, sharing, sync clients for desktop and phone, and, with Collabora Online bound, office documents edited in the browser. One Go binary, no database.",
+  "homepage": "https://opencloud.eu",
+  "license": "Apache-2.0",
+  "kind": "web",
+  "site": "cloud",
+  "memory": "1G",
+  "listen": "any",
+  "binary": "opencloud",
+  "env": [
+    {
+      "key": "OC_ADMIN_PASSWORD",
+      "desc": "The admin user's password, set on the first start",
+      "secret": true,
+      "required": true
+    },
+    {
+      "key": "COLLABORA_URL",
+      "desc": "Collabora Online's address, like https://office.example.com, to edit office documents (optional)"
+    }
+  ],
+  "files": {
+    "run": "#!/bin/sh\nset -e\nexport OC_CONFIG_DIR=\"$HOME/data/config\" OC_BASE_DATA_PATH=\"$HOME/data/opencloud\"\nexport OC_URL=\"https://$SITE_HOST\" PROXY_TLS=false PROXY_HTTP_ADDR=\"127.0.0.1:$PORT\" OC_LOG_LEVEL=warn\nmkdir -p \"$OC_CONFIG_DIR\" \"$OC_BASE_DATA_PATH\"\nif [ ! -f \"$OC_CONFIG_DIR/opencloud.yaml\" ]; then\n  ./opencloud init --insecure no --admin-password \"$OC_ADMIN_PASSWORD\"\nfi\nif [ -n \"$COLLABORA_URL\" ]; then\n  # the collaboration service speaks WOPI to Collabora on this server; the browser frames Collabora's own address\n  export OC_ADD_RUN_SERVICES=collaboration COLLABORATION_APP_NAME=CollaboraOnline COLLABORATION_APP_PRODUCT=Collabora\n  export COLLABORATION_APP_ADDR=\"$COLLABORA_URL\" COLLABORATION_WOPI_SRC=http://127.0.0.1:9300 COLLABORATION_HTTP_ADDR=127.0.0.1:9300\n  ./csp.sh \"$COLLABORA_URL\" > \"$OC_CONFIG_DIR/csp.yaml\"\n  export PROXY_CSP_CONFIG_FILE_LOCATION=\"$OC_CONFIG_DIR/csp.yaml\"\nfi\nexec ./opencloud server\n",
+    "csp.sh": "#!/bin/sh\n# OpenCloud's content security policy with Collabora's address allowed in frames\ncat <<EOF\ndirectives:\n  child-src: [\"'self'\"]\n  connect-src: [\"'self'\", \"blob:\"]\n  default-src: [\"'none'\"]\n  font-src: [\"'self'\"]\n  frame-ancestors: [\"'self'\"]\n  frame-src: [\"'self'\", \"blob:\", \"$1/\"]\n  img-src: [\"'self'\", \"data:\", \"blob:\", \"$1/\"]\n  manifest-src: [\"'self'\"]\n  media-src: [\"'self'\"]\n  object-src: [\"'self'\", \"blob:\"]\n  script-src: [\"'self'\", \"'unsafe-inline'\"]\n  style-src: [\"'self'\", \"'unsafe-inline'\"]\nEOF\n"
+  },
+  "source": {
+    "github": "opencloud-eu/opencloud",
+    "assets": {
+      "amd64": "^opencloud-[0-9.]+-linux-amd64$",
+      "arm64": "^opencloud-[0-9.]+-linux-arm64$"
+    },
+    "format": "raw"
+  }
+}

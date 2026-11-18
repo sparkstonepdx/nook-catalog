@@ -7,5 +7,11 @@
     ],
     "key": "B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8",
     "keyUrl": "https://www.postgresql.org/media/keys/ACCC4CF8.asc"
+  },
+  "collabora": {
+    "url": "https://www.collaboraoffice.com/repos/CollaboraOnline/CODE-deb",
+    "suite": "./",
+    "key": "7EB1530818B7683284483B7BD8915E456E7C440E",
+    "keyUrl": "https://www.collaboraoffice.com/downloads/gpg/collaboraonline-release-keyring.gpg"
   }
 }
