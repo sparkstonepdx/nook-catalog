@@ -14,7 +14,7 @@ type Form struct {
 	Files    []string `json:"files,omitempty"` // file inputs
 }
 
-// Rewrite finds the forms marked for Netlify in a page (netlify or data-netlify="true") and returns the page with
+// Rewrite finds the marked forms in a page (netlify or data-netlify="true", or formlify or data-formlify="true") and returns the page with
 // the marker removed and a hidden form-name input added to each, as Netlify does, plus what it found. Only those
 // form start tags change; every other byte is copied as it was. Forms in comments, <script>, <style>, <template>,
 // <textarea> and the like are skipped, since browsers don't treat them as forms either.
@@ -63,12 +63,12 @@ func Rewrite(page, html string) (string, []Form) {
 			if !marked(t) {
 				break
 			}
-			f := Form{Page: page, Name: firstAttr(t, "name", "id"), Action: t.attr("action"), Honeypot: firstAttr(t, "netlify-honeypot", "data-netlify-honeypot")}
+			f := Form{Page: page, Name: firstAttr(t, "name", "id"), Action: t.attr("action"), Honeypot: firstAttr(t, "netlify-honeypot", "data-netlify-honeypot", "formlify-honeypot", "data-formlify-honeypot")}
 			if f.Name == "" {
 				f.Name = "form"
 			}
 			out.WriteString(html[last:t.start])
-			out.WriteString(t.without("netlify", "data-netlify", "netlify-honeypot", "data-netlify-honeypot", "data-netlify-recaptcha", "netlify-recaptcha"))
+			out.WriteString(t.without("netlify", "data-netlify", "netlify-honeypot", "data-netlify-honeypot", "data-netlify-recaptcha", "netlify-recaptcha", "formlify", "data-formlify", "formlify-honeypot", "data-formlify-honeypot"))
 			if !hasFormNameInput(lower[t.stop:]) {
 				out.WriteString(`<input type="hidden" name="form-name" value="` + escapeAttr(f.Name) + `">`)
 			}
@@ -126,12 +126,17 @@ func (f Form) done() Form {
 
 var skipContent = map[string]bool{"script": true, "style": true, "template": true, "textarea": true, "title": true, "xmp": true, "noscript": true, "iframe": true, "noembed": true, "noframes": true}
 
+// marked: Netlify's markup (netlify, data-netlify="true") or Formlify's own (formlify, data-formlify="true").
 func marked(t tag) bool {
-	if t.has("netlify") {
-		return true
+	for _, n := range []string{"netlify", "formlify"} {
+		if t.has(n) {
+			return true
+		}
+		if v, ok := t.get("data-" + n); ok && strings.EqualFold(v, "true") {
+			return true
+		}
 	}
-	v, ok := t.get("data-netlify")
-	return ok && strings.EqualFold(v, "true")
+	return false
 }
 
 // hasFormNameInput: the form already sends form-name itself (before its </form>).

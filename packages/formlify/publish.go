@@ -79,7 +79,7 @@ func publish(st *store, in io.Reader, out, log io.Writer) error {
 		return err
 	}
 	if len(sf.Forms) == 0 {
-		fmt.Fprintln(log, "formlify: no forms marked netlify or data-netlify=\"true\"")
+		fmt.Fprintln(log, "formlify: no forms marked netlify or formlify")
 		return nil
 	}
 	var names []string

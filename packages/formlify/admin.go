@@ -149,7 +149,7 @@ button{font:inherit;background:none;border:0;color:#9a3a3a;cursor:pointer;paddin
 var homePage = template.Must(template.New("home").Parse(pageHead + `<h1>Formlify</h1>
 {{if .Rows}}<div class="wrap"><table><tr><th>Site</th><th>Form</th><th>Page</th><th>Submissions</th></tr>
 {{range .Rows}}<tr><td>{{.Host}}</td><td><a href="/s/{{.Host}}/{{.Name}}">{{.Name}}</a></td><td class="muted">{{.Page}}</td><td>{{.Count}}</td></tr>{{end}}
-</table></div>{{else}}<p>No forms yet. Bind a static site to Formlify on nook's Services page, mark its forms with <code>netlify</code> or <code>data-netlify="true"</code>, and deploy it.</p>{{end}}
+</table></div>{{else}}<p>No forms yet. Bind a static site to Formlify on nook's Services page, mark its forms with <code>netlify</code> or <code>formlify</code>, and deploy it.</p>{{end}}
 </main></body></html>`))
 
 var formPage = template.Must(template.New("form").Parse(pageHead + `<div class="bar"><a href="/">All forms</a><h1>{{.Form.Name}} <span class="muted">on {{.Host}}</span></h1>

@@ -13,9 +13,10 @@ Forms for static sites on nook, with Netlify's markup, so a site moves between N
      <button>Send</button>
    </form>
    ```
+   Or use Formlify's own names, which no other host reads: `formlify` (or `data-formlify="true"`) and `formlify-honeypot`. Use these when the site isn't meant for Netlify, or to say plainly which forms nook handles.
 
 ## What happens
-- **On each deploy:** nook hands Formlify the site's HTML. Each marked form loses its `netlify` attributes and gains a hidden `form-name`, as on Netlify; nothing else in the page changes. Forms inside comments, scripts, `<template>` and the like are left alone. The deploy log lists the forms found.
+- **On each deploy:** nook hands Formlify the site's HTML. Each marked form loses its `netlify` or `formlify` attributes and gains a hidden `form-name`, as on Netlify; nothing else in the page changes. Forms inside comments, scripts, `<template>` and the like are left alone. The deploy log lists the forms found.
 - **On a submission:** nook sends the site's POSTs to Formlify. It keeps a submission only if it names a form the site declared, keeps only the fields that form declares, drops it quietly if the honeypot is filled, allows 10 a minute per visitor, and takes up to 10 MB with up to 5 files.
 - **Where it goes:** one JSON line per submission in `data/forms/HOST/FORM.jsonl`, files beside it. In your backups, readable with anything.
 - **Telling you:** `NOTIFY_EMAIL` gets an email through the bound email service (Mail relay), with Reply-To set to the submitter's email field; `NOTIFY_WEBHOOK` gets the submission as JSON.
