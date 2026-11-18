@@ -1,5 +1,5 @@
 import { For, Show, createSignal, onCleanup, onSettled } from "solid-js";
-import { apps, appPath, generated, imageURL, installLink, official, repo, type App as CatalogApp } from "./catalog";
+import { apps, appPath, generated, imageURL, installLink, official, provided, providers, repo, users, type App as CatalogApp } from "./catalog";
 
 const NOOK = "https://nook.sparkstonepdx.com";
 const KEY = "nook-dashboard";
@@ -121,10 +121,37 @@ function AppPage(props: { app: CatalogApp }) {
           <Show when={a().license}><dt>License</dt><dd>{a().license}</dd></Show>
           <Show when={a().memory}><dt>Memory</dt><dd>up to {a().memory}</dd></Show>
           <Show when={arches()}><dt>Runs on</dt><dd>{arches()}</dd></Show>
-          <Show when={a().needs?.length}><dt>Needs</dt><dd>{a().needs!.join(", ")}</dd></Show>
           <Show when={a().ports?.length}><dt>Public ports</dt><dd>{a().ports!.join(", ")}</dd></Show>
         </dl>
       </section>
+
+      <Show when={provided(a()).length}>
+        <section class="section">
+          <h2>It provides</h2>
+          <p class="hint">Your other apps and sites can use these once it's installed.</p>
+          <ul class="list">
+            <For each={provided(a())}>{(p) => <li class="row"><span class="row-main"><span class="mono">{p.name}</span><Show when={p.desc}><small>{p.desc}</small></Show><Show when={users(p.name).length}><small>Used by <For each={users(p.name)}>{(u, i) => <>{i() ? ", " : ""}<a class="link" href={appPath(u.id)}>{u.name}</a></>}</For></small></Show></span></li>}</For>
+          </ul>
+        </section>
+      </Show>
+
+      <Show when={a().needs?.length}>
+        <section class="section">
+          <h2>It uses</h2>
+          <ul class="list">
+            <For each={a().needs}>
+              {(n) => (
+                <li class="row"><span class="row-main"><span class="mono">{n.replace(/[?<>=~^].*$/, "")}</span><small>
+                  {n.endsWith("?") ? "Optional. " : "Required. "}
+                  <Show when={providers(n).length} fallback="No app in this catalog provides it yet.">
+                    From <For each={providers(n)}>{(p, i) => <>{i() ? ", " : ""}<a class="link" href={appPath(p.id)}>{p.name}</a></>}</For>
+                  </Show>
+                </small></span></li>
+              )}
+            </For>
+          </ul>
+        </section>
+      </Show>
 
       <Show when={a().env?.length}>
         <section class="section">

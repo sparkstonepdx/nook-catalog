@@ -6,7 +6,7 @@ export type Image = { path: string; sha256?: string; alt?: string; width?: numbe
 export type App = {
   id: string; name: string; description: string; homepage?: string; repo?: string; license?: string; version: string;
   icon?: Image; screenshots?: Image[];
-  kind?: string; needs?: string[]; ports?: number[]; env?: EnvField[]; memory?: string; artifacts: Record<string, { url: string }>;
+  kind?: string; versions?: string[]; needs?: string[]; provides?: Record<string, { desc?: string }>; ports?: number[]; env?: EnvField[]; memory?: string; artifacts: Record<string, { url: string }>;
 };
 
 export const apps: App[] = [...(index.apps as App[])].sort((a, b) => a.name.localeCompare(b.name));
@@ -27,3 +27,9 @@ export function installLink(dashboard: string, id: string) {
   else q.set("source", repo);
   return `https://${host}/store/install?${q}`;
 }
+
+// What an app provides, its description with {version} filled in, and which apps provide a need ("email?" is optional).
+export const provided = (a: App) => Object.entries(a.provides ?? {}).map(([name, p]) => ({ name, desc: p.desc?.replaceAll("{version}", orList(a.versions) || a.version) }));
+export const providers = (need: string) => apps.filter((a) => a.provides?.[need.replace(/[?<>=~^].*$/, "")]);
+const orList = (v?: string[]) => (v?.length ? (v.length > 1 ? `${v.slice(0, -1).join(", ")} or ${v.at(-1)}` : v[0]) : "");
+export const users = (service: string) => apps.filter((a) => a.needs?.some((n) => n.replace(/[?<>=~^].*$/, "") === service));
