@@ -37,29 +37,15 @@ func env(k, def string) string {
 	return def
 }
 
-// loadConfig reads the provider (MAIL_PROVIDER: ses, sendgrid or smtp) and its settings from the environment.
+// loadConfig reads the provider's SMTP login (SES and SendGrid are plain SMTP too) from the environment.
 func loadConfig() (config, error) {
 	c := config{Port: env("PORT", "2525"), Hostname: env("SITE", "mailrelay")}
-	switch p := env("MAIL_PROVIDER", "smtp"); p {
-	case "ses":
-		region := env("SES_REGION", "")
-		if region == "" {
-			return c, fmt.Errorf("SES_REGION is required, like us-west-2")
-		}
-		c.Upstream = "email-smtp." + region + ".amazonaws.com:587"
-		c.User, c.Pass = env("SES_SMTP_USERNAME", ""), env("SES_SMTP_PASSWORD", "")
-	case "sendgrid":
-		c.Upstream, c.User, c.Pass = "smtp.sendgrid.net:587", "apikey", env("SENDGRID_API_KEY", "")
-	case "smtp":
-		c.Upstream, c.User, c.Pass = env("SMTP_HOST", ""), env("SMTP_USERNAME", ""), env("SMTP_PASSWORD", "")
-		if c.Upstream != "" && !strings.Contains(c.Upstream, ":") {
-			c.Upstream += ":587"
-		}
-	default:
-		return c, fmt.Errorf("MAIL_PROVIDER is ses, sendgrid or smtp, not %q", p)
+	c.Upstream, c.User, c.Pass = env("SMTP_HOST", ""), env("SMTP_USERNAME", ""), env("SMTP_PASSWORD", "")
+	if c.Upstream != "" && !strings.Contains(c.Upstream, ":") {
+		c.Upstream += ":587"
 	}
 	if c.Upstream == "" || c.User == "" || c.Pass == "" {
-		return c, fmt.Errorf("the provider's login is missing (see the app's settings)")
+		return c, fmt.Errorf("SMTP_HOST, SMTP_USERNAME and SMTP_PASSWORD are required (see the app's settings)")
 	}
 	for _, d := range strings.FieldsFunc(env("FROM_DOMAINS", ""), func(r rune) bool { return r == ',' || r == ' ' }) {
 		c.FromDomains = append(c.FromDomains, strings.ToLower(strings.TrimPrefix(d, "@")))
