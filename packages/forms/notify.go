@@ -34,7 +34,7 @@ func (a *app) notify(f Form, r Response) {
 func summary(f Form, r Response, limit int) string {
 	var b strings.Builder
 	n := 0
-	for _, q := range f.Questions {
+	for _, q := range f.Asked() {
 		v, ok := r.Answers[q.ID]
 		if !ok {
 			continue
@@ -81,7 +81,7 @@ func sendMail(cfg config, f Form, r Response) error {
 	var msg bytes.Buffer
 	fmt.Fprintf(&msg, "From: %s\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n",
 		cfg.NotifyFrom, cfg.NotifyEmail, mime.QEncoding.Encode("utf-8", "New response: "+f.Title), time.Now().Format(time.RFC1123Z))
-	for _, q := range f.Questions {
+	for _, q := range f.Asked() {
 		if v := r.Answers[q.ID]; q.Type == "email" && len(v) == 1 {
 			fmt.Fprintf(&msg, "Reply-To: %s\r\n", v[0]) // replying answers the person who wrote
 			break

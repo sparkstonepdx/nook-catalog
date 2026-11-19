@@ -113,7 +113,7 @@ type optCount struct {
 
 func summarize(f Form, rs []Response) []qSummary {
 	var out []qSummary
-	for _, q := range f.Questions {
+	for _, q := range f.Asked() {
 		s := qSummary{Q: q}
 		counts := map[string]int{}
 		for _, r := range rs {
@@ -151,13 +151,13 @@ func writeCSV(w http.ResponseWriter, f Form, rs []Response) {
 	w.Header().Set("Content-Disposition", `attachment; filename="`+safeFile(f.Title)+`.csv"`)
 	c := csv.NewWriter(w)
 	head := []string{"Sent"}
-	for _, q := range f.Questions {
+	for _, q := range f.Asked() {
 		head = append(head, noFormula(cmpOr(q.Title, "Untitled question")))
 	}
 	c.Write(head)
 	for i := len(rs) - 1; i >= 0; i-- {
 		row := []string{rs[i].At}
-		for _, q := range f.Questions {
+		for _, q := range f.Asked() {
 			row = append(row, noFormula(strings.Join(rs[i].Answers[q.ID], ", ")))
 		}
 		c.Write(row)
@@ -185,7 +185,7 @@ func safeFile(s string) string {
 var homePage = template.Must(template.New("home").Funcs(funcs).Parse(head + `<title>Forms</title>` + style + `</head><body><main>
 <div class="row spread"><h1>Forms</h1><form method="post" action="/new"><button class="btn primary">New form</button></form></div>
 {{range .Rows}}<a class="card row spread" href="/forms/{{.Form.ID}}" style="text-decoration:none;color:inherit">
-<span><strong>{{.Form.Title}}</strong><br><span class="small muted">{{if .Form.Open}}Taking responses{{else}}Closed{{end}} · {{len .Form.Questions}} questions</span></span>
+<span><strong>{{.Form.Title}}</strong><br><span class="small muted">{{if .Form.Open}}Taking responses{{else}}Closed{{end}} · {{len .Form.Asked}} questions</span></span>
 <span class="muted">{{.Count}} {{if eq .Count 1}}response{{else}}responses{{end}} ›</span></a>
 {{else}}<div class="card"><p>No forms yet. Make one, share its link, and the answers come back here.</p></div>{{end}}
 </main></body></html>`))
@@ -201,8 +201,8 @@ td form{display:inline}button.link{background:none;border:0;color:var(--bad);fon
 {{if .Counts}}<div class="cnt">{{range .Counts}}<span class="l">{{.Option}}<div class="bar" style="width:{{.Pct}}%"></div></span><span class="muted small">{{.N}} · {{.Pct}}%</span>{{end}}</div>
 {{else}}{{range .Latest}}<p style="margin:.25rem 0;white-space:pre-wrap">{{.}}</p>{{end}}{{end}}</div>{{end}}
 <h2>Each response</h2>
-<div class="card wrap" style="padding:0"><table><tr><th>Sent</th>{{range .Form.Questions}}<th>{{.Title}}</th>{{end}}<th></th></tr>
-{{$f := .Form}}{{range .Responses}}{{$r := .}}<tr><td class="muted small" style="white-space:nowrap">{{when .At}}</td>{{range $f.Questions}}<td>{{range $i, $x := index $r.Answers .ID}}{{if $i}}, {{end}}{{$x}}{{end}}</td>{{end}}
+<div class="card wrap" style="padding:0"><table><tr><th>Sent</th>{{range .Form.Asked}}<th>{{.Title}}</th>{{end}}<th></th></tr>
+{{$f := .Form}}{{range .Responses}}{{$r := .}}<tr><td class="muted small" style="white-space:nowrap">{{when .At}}</td>{{range $f.Asked}}<td>{{range $i, $x := index $r.Answers .ID}}{{if $i}}, {{end}}{{$x}}{{end}}</td>{{end}}
 <td><form method="post" action="/forms/{{$f.ID}}/responses/delete" onsubmit="return confirm('Delete this response? It can\'t be undone.')"><input type="hidden" name="id" value="{{.ID}}"><button class="link">Delete</button></form></td></tr>{{end}}
 </table></div>
 {{else}}<div class="card"><p>Nothing yet. Share the form's link from its page.</p></div>{{end}}

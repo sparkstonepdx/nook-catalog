@@ -11,6 +11,9 @@ Make forms and collect answers, like Google Forms, on a nook server. Install it 
 ## Questions
 Short answer, paragraph, multiple choice, checkboxes, dropdown, email, number and date. Each can be required and have help text. Questions move up and down, duplicate, and delete; options are added with Enter.
 
+## Sections
+**Add a section** starts a new page with its own title and description. Under each section, **After section N** continues to the next one, goes to another, or submits. A multiple choice or dropdown question can instead send people to a section by their answer (**Go to section by answer**). People can go **Back**; answers on pages they skipped aren't kept. It all works without JavaScript: the pages they went through and their answers so far ride along in the page, and are checked again before the response is kept.
+
 ## What it checks
 - **Answers:** each against its question: an option that's offered, an email that looks like one, a number, a date. A wrong or missing answer comes back beside its question with what was typed kept.
 - **Spam:** a hidden field only bots fill in drops a response quietly; each address may send 10 a minute.
