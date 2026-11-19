@@ -76,3 +76,10 @@ func TestRewriteKeepsItsOwnFormName(t *testing.T) {
 		t.Fatalf("%+v", f)
 	}
 }
+
+func TestFormlifyMarkup(t *testing.T) {
+	out, f := Rewrite("/", `<form formlify name="a" formlify-honeypot="trap"></form><form data-formlify="true" name="b"></form><form data-formlify="false" name="c"></form>`)
+	if len(f) != 2 || f[0].Name != "a" || f[0].Honeypot != "trap" || f[1].Name != "b" || strings.Contains(out, "formlify-honeypot") || strings.Contains(out, `data-formlify="true"`) || !strings.Contains(out, `data-formlify="false"`) {
+		t.Fatalf("%v\n%s", f, out)
+	}
+}

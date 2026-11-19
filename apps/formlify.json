@@ -1,7 +1,7 @@
 {
   "id": "formlify",
   "name": "Formlify",
-  "description": "Forms for your static sites, with Netlify's own markup: a <form netlify> works unchanged here or on Netlify. Submissions stay in files on your server, with a page to read them, a CSV download, and an email or webhook for each one.",
+  "description": "Forms for your static sites: mark a form with Netlify's own markup (<form netlify>, so it works unchanged here or on Netlify) or with <form formlify>. Submissions stay in files on your server, with a page to read them, a CSV download, and an email or webhook for each one.",
   "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/formlify",
   "license": "MIT",
   "kind": "web",
@@ -10,14 +10,29 @@
   "memory": "64M",
   "auth": "nook-login",
   "binary": "formlify",
-  "needs": ["email?"],
+  "needs": [
+    "email?"
+  ],
   "env": [
-    { "key": "NOTIFY_EMAIL", "desc": "Who gets an email for each submission (needs the email service, like Mail relay)" },
-    { "key": "NOTIFY_FROM", "desc": "The address those emails come from, on a domain the email service sends for" },
-    { "key": "NOTIFY_WEBHOOK", "desc": "A URL that gets each submission as JSON (Slack, Discord, n8n, your own)" }
+    {
+      "key": "NOTIFY_EMAIL",
+      "desc": "Who gets an email for each submission (needs the email service, like Mail relay)"
+    },
+    {
+      "key": "NOTIFY_FROM",
+      "desc": "The address those emails come from, on a domain the email service sends for"
+    },
+    {
+      "key": "NOTIFY_WEBHOOK",
+      "desc": "A URL that gets each submission as JSON (Slack, Discord, n8n, your own)"
+    }
   ],
   "provides": {
-    "formlify": { "desc": "takes the site's Netlify-style forms", "publish": "./publish.sh", "posts": true }
+    "formlify": {
+      "desc": "takes the site's Netlify-style forms",
+      "publish": "./publish.sh",
+      "posts": true
+    }
   },
   "files": {
     "run": "#!/bin/sh\nexec ./formlify\n",
@@ -26,7 +41,10 @@
   "source": {
     "github": "sparkstonepdx/nook-catalog",
     "tagPrefix": "formlify-",
-    "assets": { "amd64": "_linux_amd64\\.tar\\.gz$", "arm64": "_linux_arm64\\.tar\\.gz$" },
+    "assets": {
+      "amd64": "_linux_amd64\\.tar\\.gz$",
+      "arm64": "_linux_arm64\\.tar\\.gz$"
+    },
     "format": "tar.gz"
   }
 }
