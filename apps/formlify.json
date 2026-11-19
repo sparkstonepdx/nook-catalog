@@ -1,7 +1,7 @@
 {
   "id": "formlify",
   "name": "Formlify",
-  "description": "Forms for your static sites: mark a form with Netlify's own markup (<form netlify>, so it works unchanged here or on Netlify) or with <form formlify>. Submissions stay in files on your server, with a page to read them, a CSV download, and an email or webhook for each one.",
+  "description": "Forms for your static sites: mark a form with Netlify's own markup (<form netlify>, so it works unchanged here or on Netlify) or with <form formlify>. Submissions stay in files on your server, with a page to read them, a CSV download, and an email, a push or a webhook for each one.",
   "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/formlify",
   "license": "MIT",
   "kind": "web",
@@ -11,7 +11,8 @@
   "auth": "nook-login",
   "binary": "formlify",
   "needs": [
-    "email?"
+    "email?",
+    "notify?"
   ],
   "env": [
     {

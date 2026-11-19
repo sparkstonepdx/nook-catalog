@@ -10,15 +10,39 @@
   "memory": "128M",
   "binary": "ntfy",
   "env": [
-    { "key": "NTFY_BASE_URL", "desc": "Public URL of this server", "default": "https://{site_host}" },
-    { "key": "NTFY_AUTH_DEFAULT_ACCESS", "desc": "read-write, read-only, write-only or deny-all for anyone without a login", "default": "read-write" }
+    {
+      "key": "NTFY_BASE_URL",
+      "desc": "Public URL of this server",
+      "default": "https://{site_host}"
+    },
+    {
+      "key": "NTFY_AUTH_DEFAULT_ACCESS",
+      "desc": "read-write, read-only, write-only or deny-all for anyone without a login",
+      "default": "read-write"
+    }
   ],
   "files": {
-    "run": "#!/bin/sh\nset -e\nmkdir -p \"$HOME/data/ntfy/attachments\"\nexport NTFY_LISTEN_HTTP=\"127.0.0.1:$PORT\"\nexport NTFY_BEHIND_PROXY=true\nexport NTFY_CACHE_FILE=\"$HOME/data/ntfy/cache.db\"\nexport NTFY_AUTH_FILE=\"$HOME/data/ntfy/auth.db\"\nexport NTFY_ATTACHMENT_CACHE_DIR=\"$HOME/data/ntfy/attachments\"\nexec ./ntfy serve\n"
+    "run": "#!/bin/sh\nset -e\nmkdir -p \"$HOME/data/ntfy/attachments\"\nexport NTFY_LISTEN_HTTP=\"127.0.0.1:$PORT\"\nexport NTFY_BEHIND_PROXY=true\nexport NTFY_CACHE_FILE=\"$HOME/data/ntfy/cache.db\"\nexport NTFY_AUTH_FILE=\"$HOME/data/ntfy/auth.db\"\nexport NTFY_ATTACHMENT_CACHE_DIR=\"$HOME/data/ntfy/attachments\"\nexec ./ntfy serve\n",
+    "provision.sh": "#!/bin/sh\n# Called by nook when an app is bound to notify: a topic named after the app, and a login (nook-APP) that may only\n# publish to it. Subscribe to the topic in the ntfy app to get what it sends.\nset -eu\nAPP=\"$1\"\nU=\"nook-$APP\"\nexport NTFY_AUTH_FILE=\"$HOME/data/ntfy/auth.db\"\nmkdir -p \"$HOME/data/ntfy\"\nif ! ./ntfy user list 2>&1 | grep -q \"^user $U \"; then\n  NTFY_PASSWORD=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \\n') ./ntfy user add \"$U\" >/dev/null\nfi\n./ntfy access \"$U\" \"$APP\" write-only >/dev/null\nTOKEN=$(./ntfy token add \"$U\" 2>&1 | grep -o 'tk_[A-Za-z0-9]*' | head -n 1)\nif [ -z \"$TOKEN\" ]; then\n  echo \"ntfy didn't make a token for $U\" >&2\n  exit 1\nfi\necho \"NOTIFY_URL=http://127.0.0.1:$PORT/$APP\"\necho \"NOTIFY_TOKEN=$TOKEN\"\n",
+    "deprovision.sh": "#!/bin/sh\n# Called by nook when a notify binding goes: its login and tokens go; the topic's messages stay until they expire.\nset -eu\nexport NTFY_AUTH_FILE=\"$HOME/data/ntfy/auth.db\"\n./ntfy user del \"nook-$1\" >/dev/null 2>&1 || true\n"
   },
   "source": {
     "github": "binwiederhier/ntfy",
-    "assets": { "amd64": "^ntfy_.*_linux_amd64\\.tar\\.gz$", "arm64": "^ntfy_.*_linux_arm64\\.tar\\.gz$" },
+    "assets": {
+      "amd64": "^ntfy_.*_linux_amd64\\.tar\\.gz$",
+      "arm64": "^ntfy_.*_linux_arm64\\.tar\\.gz$"
+    },
     "format": "tar.gz"
+  },
+  "provides": {
+    "notify": {
+      "desc": "a topic named after each bound app, and a login that may only publish to it",
+      "env": {
+        "NOTIFY_URL": "",
+        "NOTIFY_TOKEN": ""
+      },
+      "provision": "./provision.sh",
+      "deprovision": "./deprovision.sh"
+    }
   }
 }

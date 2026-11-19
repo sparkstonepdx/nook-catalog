@@ -171,3 +171,24 @@ func TestMailText(t *testing.T) {
 		t.Fatal("reply-to")
 	}
 }
+
+func TestPush(t *testing.T) {
+	got := make(chan *http.Request, 1)
+	bodies := make(chan string, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		got <- r
+		bodies <- string(b)
+	}))
+	defer srv.Close()
+	cfg := config{URL: "https://forms.example.com", PushURL: srv.URL + "/formlify", PushToken: "tk_abc"}
+	sub := submission{Fields: map[string][]string{"email": {"ana@example.org"}, "message": {strings.Repeat("x", 200)}}}
+	if err := push(cfg, siteForms{Host: "example.com"}, Form{Name: "contact"}, sub); err != nil {
+		t.Fatal(err)
+	}
+	r, body := <-got, <-bodies
+	if r.URL.Path != "/formlify" || r.Header.Get("Authorization") != "Bearer tk_abc" || r.Header.Get("Title") != "contact: new submission on example.com" ||
+		r.Header.Get("Click") != "https://forms.example.com/s/example.com/contact" || !strings.HasPrefix(body, "email: ana@example.org\nmessage: xxx") || len(body) > 150 {
+		t.Fatalf("%v %q", r.Header, body)
+	}
+}
