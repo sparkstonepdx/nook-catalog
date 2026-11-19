@@ -1,0 +1,43 @@
+{
+  "id": "forms",
+  "name": "Forms",
+  "description": "Make forms and collect answers, like Google Forms, on your own server. Build one in the editor, share its link, and read the responses as a summary, a table or a CSV. Anyone with the link can answer; everything else stays behind your nook login.",
+  "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/forms",
+  "license": "MIT",
+  "kind": "web",
+  "site": "forms",
+  "health": "/healthz",
+  "memory": "64M",
+  "auth": "nook-login",
+  "open": [
+    "/f/*",
+    "/healthz"
+  ],
+  "binary": "forms",
+  "needs": [
+    "email?",
+    "notify?"
+  ],
+  "env": [
+    {
+      "key": "NOTIFY_EMAIL",
+      "desc": "Who gets an email for each response (needs the email service, like Mail relay)"
+    },
+    {
+      "key": "NOTIFY_FROM",
+      "desc": "The address those emails come from, on a domain the email service sends for"
+    }
+  ],
+  "files": {
+    "run": "#!/bin/sh\nexec ./forms\n"
+  },
+  "source": {
+    "github": "sparkstonepdx/nook-catalog",
+    "tagPrefix": "forms-",
+    "assets": {
+      "amd64": "_linux_amd64\\.tar\\.gz$",
+      "arm64": "_linux_arm64\\.tar\\.gz$"
+    },
+    "format": "tar.gz"
+  }
+}
