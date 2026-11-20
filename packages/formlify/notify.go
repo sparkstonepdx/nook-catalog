@@ -16,11 +16,17 @@ import (
 )
 
 // notify tells people about a new submission: an email through the bound email service (SMTP_URL) to
-// NOTIFY_EMAIL, and a JSON POST to NOTIFY_WEBHOOK. Either is optional; failures are logged, the submission is kept.
+// NOTIFY_EMAIL, a push through the bound notify service (NOTIFY_URL, ntfy), and a JSON POST to NOTIFY_WEBHOOK.
+// Each is optional; failures are logged, the submission is kept.
 func (a *app) notify(sf siteForms, f Form, sub submission) {
 	if a.cfg.SMTPURL != "" && a.cfg.NotifyEmail != "" && a.cfg.NotifyFrom != "" {
 		if err := sendMail(a.cfg, sf, f, sub); err != nil {
 			log.Printf("%s %s: email: %v", sf.Host, f.Name, err)
+		}
+	}
+	if a.cfg.PushURL != "" {
+		if err := push(a.cfg, sf, f, sub); err != nil {
+			log.Printf("%s %s: push: %v", sf.Host, f.Name, err)
 		}
 	}
 	if a.cfg.Webhook != "" {
@@ -101,6 +107,44 @@ func postWebhook(to string, sf siteForms, f Form, sub submission) error {
 	resp.Body.Close()
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("%s answered %s", to, resp.Status)
+	}
+	return nil
+}
+
+// push publishes a short notice to the bound notify service, ntfy's way: the message as the body, with a title,
+// a tag and a link to the form's submissions.
+func push(cfg config, sf siteForms, f Form, sub submission) error {
+	var b strings.Builder
+	for i, k := range sortedKeys(sub.Fields) {
+		if i == 4 {
+			b.WriteString("…")
+			break
+		}
+		v := strings.Join(sub.Fields[k], ", ")
+		if len(v) > 80 {
+			v = v[:80] + "…"
+		}
+		fmt.Fprintf(&b, "%s: %s\n", k, v)
+	}
+	req, err := http.NewRequest("POST", cfg.PushURL, strings.NewReader(strings.TrimSpace(b.String())))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Title", fmt.Sprintf("%s: new submission on %s", f.Name, sf.Host))
+	req.Header.Set("Tags", "inbox_tray")
+	if cfg.URL != "" {
+		req.Header.Set("Click", fmt.Sprintf("%s/s/%s/%s", cfg.URL, url.PathEscape(sf.Host), url.PathEscape(f.Name)))
+	}
+	if cfg.PushToken != "" {
+		req.Header.Set("Authorization", "Bearer "+cfg.PushToken)
+	}
+	resp, err := (&http.Client{Timeout: 15 * time.Second}).Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("the notify service answered %s", resp.Status)
 	}
 	return nil
 }

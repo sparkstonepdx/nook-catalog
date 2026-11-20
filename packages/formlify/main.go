@@ -26,6 +26,8 @@ type config struct {
 	NotifyEmail string
 	NotifyFrom  string
 	Webhook     string
+	PushURL     string // from the bound notify service (ntfy): a topic to publish each submission to
+	PushToken   string
 }
 
 type app struct {
@@ -64,7 +66,7 @@ func main() {
 		return
 	}
 	cfg := config{Port: env("PORT", "8080"), Data: st.dir, SMTPURL: os.Getenv("SMTP_URL"), NotifyEmail: os.Getenv("NOTIFY_EMAIL"),
-		NotifyFrom: os.Getenv("NOTIFY_FROM"), Webhook: os.Getenv("NOTIFY_WEBHOOK")}
+		NotifyFrom: os.Getenv("NOTIFY_FROM"), Webhook: os.Getenv("NOTIFY_WEBHOOK"), PushURL: os.Getenv("NOTIFY_URL"), PushToken: os.Getenv("NOTIFY_TOKEN")}
 	if h := os.Getenv("SITE_HOST"); h != "" {
 		cfg.URL = "https://" + h
 	}
