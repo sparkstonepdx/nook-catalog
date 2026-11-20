@@ -1,0 +1,721 @@
+{
+  "generated": "2026-11-20T03:56:05Z",
+  "apps": [
+    {
+      "id": "collabora",
+      "name": "Collabora Online",
+      "description": "Edit Word, Excel and PowerPoint files in the browser, together, from a file app that opens it (OpenCloud). LibreOffice underneath, from Collabora's own packages.",
+      "homepage": "https://www.collaboraonline.com/code/",
+      "license": "MPL-2.0",
+      "version": "CODE",
+      "kind": "web",
+      "site": "office",
+      "health": "/hosting/discovery",
+      "memory": "2G",
+      "env": [
+        {
+          "key": "WOPI_HOSTS",
+          "desc": "The address of the file app allowed to open documents here, like cloud.example.com",
+          "required": true
+        }
+      ],
+      "files": {
+        "run": "#!/bin/sh\nset -e\n# coolwsd runs as this app's user, not the package's cool user, with its working folders in data/.\n# No capabilities or mount namespaces in nook's sandbox, so each document is isolated by Landlock instead.\nmkdir -p \"$HOME/data/child-roots\" \"$HOME/data/cache\"\nhosts=\"\"\ni=0\nfor h in $(echo \"$WOPI_HOSTS\" | tr ',' ' ') 127.0.0.1; do\n  hosts=\"$hosts --o:storage.wopi.host[$i]=$(echo \"$h\" | sed 's/[.]/\\\\./g')\"\n  i=$((i + 1))\ndone\nexec /usr/bin/coolwsd --disable-cool-user-checking --port=\"$PORT\" \\\n  --o:net.listen=loopback --o:net.proto=IPv4 \\\n  --o:ssl.enable=false --o:ssl.termination=true \\\n  --o:server_name=\"$SITE_HOST\" \\\n  --o:child_root_path=\"$HOME/data/child-roots\" --o:cache_files.path=\"$HOME/data/cache\" \\\n  --o:mount_jail_tree=false --o:security.capabilities=false \\\n  --o:admin_console.enable=false --o:logging.file[@enable]=false \\\n  $hosts\n"
+      },
+      "apt": {
+        "packages": [
+          "coolwsd",
+          "code-brand"
+        ],
+        "repo": "collabora"
+      },
+      "mask": [
+        "coolwsd"
+      ]
+    },
+    {
+      "id": "directory",
+      "name": "Directory",
+      "description": "A public page of the apps you list on the dashboard, with each one's own icon, name and screenshots. Installable as a home-screen launcher.",
+      "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/directory",
+      "repo": "https://github.com/sparkstonepdx/nook-catalog",
+      "license": "MIT",
+      "version": "v0.3.0",
+      "kind": "web",
+      "site": "apps",
+      "health": "/health",
+      "memory": "64M",
+      "env": [
+        {
+          "key": "DIRECTORY_TITLE",
+          "desc": "The page's heading",
+          "default": "Apps"
+        },
+        {
+          "key": "DIRECTORY_INTRO",
+          "desc": "A line under the heading"
+        },
+        {
+          "key": "DIRECTORY_SOURCE",
+          "desc": "Where the list comes from: your dashboard's /api/v1/directory",
+          "default": "{dashboard_url}/api/v1/directory"
+        }
+      ],
+      "binary": "directory",
+      "files": {
+        "run": "#!/bin/sh\nexec ./directory\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/directory-v0.3.0/directory_v0.3.0_linux_amd64.tar.gz",
+          "sha256": "567c74bce9c18944615fe23573264698b5bd72899960ca92d8571607df487e49",
+          "format": "tar.gz"
+        },
+        "arm64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/directory-v0.3.0/directory_v0.3.0_linux_arm64.tar.gz",
+          "sha256": "b422a7baf067d856715c853aaf3ef7fa603a2273674883633f1b1cecc2988777",
+          "format": "tar.gz"
+        }
+      }
+    },
+    {
+      "id": "files",
+      "name": "Files",
+      "description": "File storage for your apps: CI uploads APKs, installers and release downloads with NOOK_TOKEN, people with a nook login download, public files have a link for anyone, and share links let anyone else in until they expire.",
+      "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/files",
+      "repo": "https://github.com/sparkstonepdx/nook-catalog",
+      "license": "MIT",
+      "version": "v0.4.0",
+      "kind": "web",
+      "site": "files",
+      "health": "/health",
+      "auth": "nook-login",
+      "open": [
+        "/p/*",
+        "/s/*",
+        "/health"
+      ],
+      "memory": "128M",
+      "env": [
+        {
+          "key": "FILES_MAX_MB",
+          "desc": "Largest upload in MB, up to 2047",
+          "default": "2047"
+        },
+        {
+          "key": "FILES_URL",
+          "desc": "Public URL of this site, for the links uploads and shares return",
+          "default": "https://{site_host}"
+        }
+      ],
+      "binary": "files",
+      "files": {
+        "run": "#!/bin/sh\nexec ./files\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/files-v0.4.0/files_v0.4.0_linux_amd64.tar.gz",
+          "sha256": "eff3e1ff6d5147d9329050c5101895c2b7fe0e167944d29cbb76203349465cce",
+          "format": "tar.gz"
+        },
+        "arm64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/files-v0.4.0/files_v0.4.0_linux_arm64.tar.gz",
+          "sha256": "f6e91334c9b85fb920b2b2f7f8cf3384803ee66d96e393c0b7d957e3b1fe0fa5",
+          "format": "tar.gz"
+        }
+      }
+    },
+    {
+      "id": "formlify",
+      "name": "Formlify",
+      "description": "Forms for your static sites: mark a form with Netlify's own markup (\u003cform netlify\u003e, so it works unchanged here or on Netlify) or with \u003cform formlify\u003e. Submissions stay in files on your server, with a page to read them, a CSV download, and an email, a push or a webhook for each one.",
+      "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/formlify",
+      "repo": "https://github.com/sparkstonepdx/nook-catalog",
+      "license": "MIT",
+      "version": "v0.3.0",
+      "kind": "web",
+      "site": "formlify",
+      "health": "/healthz",
+      "auth": "nook-login",
+      "memory": "64M",
+      "needs": [
+        "email?",
+        "notify?"
+      ],
+      "env": [
+        {
+          "key": "NOTIFY_EMAIL",
+          "desc": "Who gets an email for each submission (needs the email service, like Mail relay)"
+        },
+        {
+          "key": "NOTIFY_FROM",
+          "desc": "The address those emails come from, on a domain the email service sends for"
+        },
+        {
+          "key": "NOTIFY_WEBHOOK",
+          "desc": "A URL that gets each submission as JSON (Slack, Discord, n8n, your own)"
+        }
+      ],
+      "binary": "formlify",
+      "files": {
+        "publish.sh": "#!/bin/sh\nexec ./formlify publish\n",
+        "run": "#!/bin/sh\nexec ./formlify\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/formlify-v0.3.0/formlify_v0.3.0_linux_amd64.tar.gz",
+          "sha256": "73a5d55c02114c589987384b4806ead190a58dee6738721508ca893a4e038364",
+          "format": "tar.gz"
+        },
+        "arm64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/formlify-v0.3.0/formlify_v0.3.0_linux_arm64.tar.gz",
+          "sha256": "ca80e7bcc348a2ea7fc77b22a21c24553c7a807152e5b4c3c8cc1436366161b3",
+          "format": "tar.gz"
+        }
+      },
+      "provides": {
+        "formlify": {
+          "desc": "takes the site's Netlify-style forms",
+          "publish": "./publish.sh",
+          "posts": true
+        }
+      }
+    },
+    {
+      "id": "forms",
+      "name": "Forms",
+      "description": "Make forms and collect answers, like Google Forms, on your own server. Build one in the editor, share its link, and read the responses as a summary, a table or a CSV. Anyone with the link can answer; everything else stays behind your nook login.",
+      "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/forms",
+      "repo": "https://github.com/sparkstonepdx/nook-catalog",
+      "license": "MIT",
+      "version": "v0.1.0",
+      "kind": "web",
+      "site": "forms",
+      "health": "/healthz",
+      "auth": "nook-login",
+      "open": [
+        "/f/*",
+        "/healthz"
+      ],
+      "memory": "64M",
+      "needs": [
+        "email?",
+        "notify?"
+      ],
+      "env": [
+        {
+          "key": "NOTIFY_EMAIL",
+          "desc": "Who gets an email for each response (needs the email service, like Mail relay)"
+        },
+        {
+          "key": "NOTIFY_FROM",
+          "desc": "The address those emails come from, on a domain the email service sends for"
+        }
+      ],
+      "binary": "forms",
+      "files": {
+        "run": "#!/bin/sh\nexec ./forms\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/forms-v0.1.0/forms_v0.1.0_linux_amd64.tar.gz",
+          "sha256": "efbfb7304147e1e77f5a75b02ae4edfe5b30909397502c12969c608fb705cd5d",
+          "format": "tar.gz"
+        },
+        "arm64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/forms-v0.1.0/forms_v0.1.0_linux_arm64.tar.gz",
+          "sha256": "b7e2cf27afe43e0a643915e1ed1a35698e42f136fca7b721403ef5c5df336d6e",
+          "format": "tar.gz"
+        }
+      }
+    },
+    {
+      "id": "goatcounter",
+      "name": "GoatCounter",
+      "description": "Privacy-friendly web analytics: page views, referrers and screen sizes without tracking people.",
+      "homepage": "https://www.goatcounter.com",
+      "repo": "https://github.com/arp242/goatcounter",
+      "screenshots": [
+        {
+          "path": "images/goatcounter/pages.png",
+          "sha256": "d7513e2a642f060dcd3e3f1888e52e49590da244a21d75a85c01e473e1b57c70",
+          "alt": "A week of page views, one chart per page",
+          "width": 1280,
+          "height": 800
+        },
+        {
+          "path": "images/goatcounter/sources.png",
+          "sha256": "d813ddc0fc869025361f900d06063795c464ce6a6291e8e64f4afeb4595fe579",
+          "alt": "Total visits, top referrers, browsers and systems",
+          "width": 1280,
+          "height": 800
+        }
+      ],
+      "license": "EUPL-1.2",
+      "version": "v2.7.0",
+      "kind": "web",
+      "site": "stats",
+      "health": "/status",
+      "memory": "128M",
+      "env": [
+        {
+          "key": "GC_ADMIN_EMAIL",
+          "desc": "Your login, made on the first start",
+          "required": true
+        },
+        {
+          "key": "GC_ADMIN_PASSWORD",
+          "desc": "Your password (at least 8 characters)",
+          "secret": true,
+          "required": true
+        }
+      ],
+      "binary": "goatcounter",
+      "files": {
+        "run": "#!/bin/sh\nset -e\n# not GOATCOUNTER_*: GoatCounter reads those as its own flags and refuses names it doesn't know\nmkdir -p \"$HOME/data\"\nDB=\"sqlite+$HOME/data/goatcounter.sqlite3\"\n# make the site and its login before serving: until a site exists, GoatCounter offers anyone a sign-up form\nif [ ! -f \"$HOME/data/goatcounter.sqlite3\" ]; then\n  ./goatcounter db create site -createdb -db \"$DB\" -vhost \"$SITE_HOST\" -user.email \"$GC_ADMIN_EMAIL\" -user.password \"$GC_ADMIN_PASSWORD\"\nfi\nexec ./goatcounter serve -automigrate -listen \"127.0.0.1:$PORT\" -tls http -db \"$DB\"\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/arp242/goatcounter/releases/download/v2.7.0/goatcounter-v2.7.0-linux-amd64.gz",
+          "sha256": "98d221cb9c8ef2bf76d8daa9cca647839f8d8b0bb5bc7400ff9337c5da834511",
+          "format": "gz"
+        },
+        "arm64": {
+          "url": "https://github.com/arp242/goatcounter/releases/download/v2.7.0/goatcounter-v2.7.0-linux-arm64.gz",
+          "sha256": "ff5b2670b858bbe48802dfdc74130b6dcde2de9f5c1229b838eb9132769307dd",
+          "format": "gz"
+        }
+      }
+    },
+    {
+      "id": "mailrelay",
+      "name": "Mail relay",
+      "description": "Email for every app on this server through one SMTP login: Amazon SES, SendGrid, Fastmail or any other provider. Each bound app gets SMTP_URL with its own token, never the account's login; mail goes out only from your domains, with a limit per app.",
+      "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/mailrelay",
+      "repo": "https://github.com/sparkstonepdx/nook-catalog",
+      "license": "MIT",
+      "version": "v0.2.0",
+      "kind": "service",
+      "site": "mail",
+      "memory": "64M",
+      "env": [
+        {
+          "key": "SMTP_HOST",
+          "desc": "Your provider's SMTP server. Amazon SES: email-smtp.REGION.amazonaws.com (like email-smtp.us-west-2.amazonaws.com). SendGrid: smtp.sendgrid.net. Port 587 unless you add one.",
+          "required": true
+        },
+        {
+          "key": "SMTP_USERNAME",
+          "desc": "Amazon SES: the SMTP username from SES \u003e SMTP settings (not an access key). SendGrid: the word apikey.",
+          "required": true
+        },
+        {
+          "key": "SMTP_PASSWORD",
+          "desc": "Amazon SES: the SMTP password from the same page. SendGrid: an API key with Mail Send.",
+          "secret": true,
+          "required": true
+        },
+        {
+          "key": "FROM_DOMAINS",
+          "desc": "Domains apps may send from, like example.com (subdomains too)",
+          "required": true
+        },
+        {
+          "key": "SENDS_PER_HOUR",
+          "desc": "Recipients one app may send to an hour",
+          "default": "200"
+        }
+      ],
+      "binary": "mailrelay",
+      "files": {
+        "run": "#!/bin/sh\nexec ./mailrelay\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/mailrelay-v0.2.0/mailrelay_v0.2.0_linux_amd64.tar.gz",
+          "sha256": "14e4ccd8c837acfc92fc318a536b2abaf96093c26e0fd007a1ad6667e4138f8e",
+          "format": "tar.gz"
+        },
+        "arm64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/mailrelay-v0.2.0/mailrelay_v0.2.0_linux_arm64.tar.gz",
+          "sha256": "0f1057f2d601d73c5d7fdbe9e05437e321c97af8fe75968bd37b8f9623d2698c",
+          "format": "tar.gz"
+        }
+      },
+      "provides": {
+        "email": {
+          "desc": "sends through your SMTP login (Amazon SES, SendGrid or any provider)",
+          "env": {
+            "SMTP_URL": "smtp://nook:{token}@{host}:{port}"
+          }
+        }
+      }
+    },
+    {
+      "id": "ntfy",
+      "name": "ntfy",
+      "description": "Push notifications to phones and desktops over plain HTTP PUT/POST. Also a target for nook's own update alerts.",
+      "homepage": "https://ntfy.sh",
+      "repo": "https://github.com/binwiederhier/ntfy",
+      "license": "Apache-2.0 / GPL-2.0",
+      "version": "v2.38.1",
+      "kind": "web",
+      "site": "ntfy",
+      "health": "/v1/health",
+      "memory": "128M",
+      "env": [
+        {
+          "key": "NTFY_BASE_URL",
+          "desc": "Public URL of this server",
+          "default": "https://{site_host}"
+        },
+        {
+          "key": "NTFY_AUTH_DEFAULT_ACCESS",
+          "desc": "read-write, read-only, write-only or deny-all for anyone without a login",
+          "default": "read-write"
+        }
+      ],
+      "binary": "ntfy",
+      "files": {
+        "deprovision.sh": "#!/bin/sh\n# Called by nook when a notify binding goes: its login and tokens go; the topic's messages stay until they expire.\nset -eu\nexport NTFY_AUTH_FILE=\"$HOME/data/ntfy/auth.db\"\n./ntfy user del \"nook-$1\" \u003e/dev/null 2\u003e\u00261 || true\n",
+        "provision.sh": "#!/bin/sh\n# Called by nook when an app is bound to notify: a topic named after the app, and a login (nook-APP) that may only\n# publish to it. Subscribe to the topic in the ntfy app to get what it sends.\nset -eu\nAPP=\"$1\"\nU=\"nook-$APP\"\nexport NTFY_AUTH_FILE=\"$HOME/data/ntfy/auth.db\"\nmkdir -p \"$HOME/data/ntfy\"\nif ! ./ntfy user list 2\u003e\u00261 | grep -q \"^user $U \"; then\n  NTFY_PASSWORD=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \\n') ./ntfy user add \"$U\" \u003e/dev/null\nfi\n./ntfy access \"$U\" \"$APP\" write-only \u003e/dev/null\nTOKEN=$(./ntfy token add \"$U\" 2\u003e\u00261 | grep -o 'tk_[A-Za-z0-9]*' | head -n 1)\nif [ -z \"$TOKEN\" ]; then\n  echo \"ntfy didn't make a token for $U\" \u003e\u00262\n  exit 1\nfi\necho \"NOTIFY_URL=http://127.0.0.1:$PORT/$APP\"\necho \"NOTIFY_TOKEN=$TOKEN\"\n",
+        "run": "#!/bin/sh\nset -e\nmkdir -p \"$HOME/data/ntfy/attachments\"\nexport NTFY_LISTEN_HTTP=\"127.0.0.1:$PORT\"\nexport NTFY_BEHIND_PROXY=true\nexport NTFY_CACHE_FILE=\"$HOME/data/ntfy/cache.db\"\nexport NTFY_AUTH_FILE=\"$HOME/data/ntfy/auth.db\"\nexport NTFY_ATTACHMENT_CACHE_DIR=\"$HOME/data/ntfy/attachments\"\nexec ./ntfy serve\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/binwiederhier/ntfy/releases/download/v2.38.1/ntfy_2.38.1_linux_amd64.tar.gz",
+          "sha256": "9727d45e5da86c3f338f0f329044485bddde76f3fbbbc3f9e695c14776f09c32",
+          "format": "tar.gz"
+        },
+        "arm64": {
+          "url": "https://github.com/binwiederhier/ntfy/releases/download/v2.38.1/ntfy_2.38.1_linux_arm64.tar.gz",
+          "sha256": "1b9158ece3589792bf8605171df21d6d99d1608bcbddf59bb5fb7878f18e88c3",
+          "format": "tar.gz"
+        }
+      },
+      "provides": {
+        "notify": {
+          "desc": "a topic named after each bound app, and a login that may only publish to it",
+          "env": {
+            "NOTIFY_TOKEN": "",
+            "NOTIFY_URL": ""
+          },
+          "provision": "./provision.sh",
+          "deprovision": "./deprovision.sh"
+        }
+      }
+    },
+    {
+      "id": "opencloud",
+      "name": "OpenCloud",
+      "description": "Files for a team: folders, sharing, sync clients for desktop and phone, and, with Collabora Online bound, office documents edited in the browser. One Go binary, no database.",
+      "homepage": "https://opencloud.eu",
+      "repo": "https://github.com/opencloud-eu/opencloud",
+      "license": "Apache-2.0",
+      "version": "v9.2.0",
+      "kind": "web",
+      "site": "cloud",
+      "listen": "any",
+      "memory": "1G",
+      "env": [
+        {
+          "key": "OC_ADMIN_PASSWORD",
+          "desc": "The admin user's password, set on the first start",
+          "secret": true,
+          "required": true
+        },
+        {
+          "key": "COLLABORA_URL",
+          "desc": "Collabora Online's address, like https://office.example.com, to edit office documents (optional)"
+        }
+      ],
+      "binary": "opencloud",
+      "files": {
+        "csp.sh": "#!/bin/sh\n# OpenCloud's content security policy with Collabora's address allowed in frames\ncat \u003c\u003cEOF\ndirectives:\n  child-src: [\"'self'\"]\n  connect-src: [\"'self'\", \"blob:\"]\n  default-src: [\"'none'\"]\n  font-src: [\"'self'\"]\n  frame-ancestors: [\"'self'\"]\n  frame-src: [\"'self'\", \"blob:\", \"$1/\"]\n  img-src: [\"'self'\", \"data:\", \"blob:\", \"$1/\"]\n  manifest-src: [\"'self'\"]\n  media-src: [\"'self'\"]\n  object-src: [\"'self'\", \"blob:\"]\n  script-src: [\"'self'\", \"'unsafe-inline'\"]\n  style-src: [\"'self'\", \"'unsafe-inline'\"]\nEOF\n",
+        "run": "#!/bin/sh\nset -e\nexport OC_CONFIG_DIR=\"$HOME/data/config\" OC_BASE_DATA_PATH=\"$HOME/data/opencloud\"\nexport OC_URL=\"https://$SITE_HOST\" PROXY_TLS=false PROXY_HTTP_ADDR=\"127.0.0.1:$PORT\" OC_LOG_LEVEL=warn\nmkdir -p \"$OC_CONFIG_DIR\" \"$OC_BASE_DATA_PATH\"\nif [ ! -f \"$OC_CONFIG_DIR/opencloud.yaml\" ]; then\n  ./opencloud init --insecure no --admin-password \"$OC_ADMIN_PASSWORD\"\nfi\nif [ -n \"$COLLABORA_URL\" ]; then\n  # the collaboration service speaks WOPI to Collabora on this server; the browser frames Collabora's own address\n  export OC_ADD_RUN_SERVICES=collaboration COLLABORATION_APP_NAME=CollaboraOnline COLLABORATION_APP_PRODUCT=Collabora\n  export COLLABORATION_APP_ADDR=\"$COLLABORA_URL\" COLLABORATION_WOPI_SRC=http://127.0.0.1:9300 COLLABORATION_HTTP_ADDR=127.0.0.1:9300\n  ./csp.sh \"$COLLABORA_URL\" \u003e \"$OC_CONFIG_DIR/csp.yaml\"\n  export PROXY_CSP_CONFIG_FILE_LOCATION=\"$OC_CONFIG_DIR/csp.yaml\"\nfi\nexec ./opencloud server\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/opencloud-eu/opencloud/releases/download/v9.2.0/opencloud-9.2.0-linux-amd64",
+          "sha256": "6dd961024170b77838b9c61f0b03767fe9bf27d4ba8265d6537cb2e6a228b9be",
+          "format": "raw"
+        },
+        "arm64": {
+          "url": "https://github.com/opencloud-eu/opencloud/releases/download/v9.2.0/opencloud-9.2.0-linux-arm64",
+          "sha256": "f0778e22f05dae50bfdb6ec50ce6561676387a0947b0cb5a6eb21d8926e98db8",
+          "format": "raw"
+        }
+      }
+    },
+    {
+      "id": "pocketbase",
+      "name": "PocketBase",
+      "description": "A backend in one file: a database with realtime subscriptions, auth, file storage and an admin dashboard.",
+      "homepage": "https://pocketbase.io",
+      "repo": "https://github.com/pocketbase/pocketbase",
+      "screenshots": [
+        {
+          "path": "images/pocketbase/records.png",
+          "sha256": "8571b6b69b61bb799f68125408a0fd7f9152335866353397af6edfe13546013b",
+          "alt": "The admin dashboard listing records in an orders collection",
+          "width": 1280,
+          "height": 800
+        },
+        {
+          "path": "images/pocketbase/edit-record.png",
+          "sha256": "2e891e33c52ad67ed9bfdb35cb5d4b153aa45b16f1272b6cbcf66682d470e78a",
+          "alt": "Editing one record in the admin dashboard",
+          "width": 1280,
+          "height": 800
+        }
+      ],
+      "license": "MIT",
+      "version": "v0.40.6",
+      "kind": "web",
+      "site": "pb",
+      "health": "/api/health",
+      "memory": "256M",
+      "env": [
+        {
+          "key": "PB_ADMIN_EMAIL",
+          "desc": "Email for the first superuser, made on the first start",
+          "required": true
+        },
+        {
+          "key": "PB_ADMIN_PASSWORD",
+          "desc": "Password for the first superuser (at least 8 characters). Change it later in the dashboard.",
+          "secret": true,
+          "required": true
+        }
+      ],
+      "binary": "pocketbase",
+      "files": {
+        "run": "#!/bin/sh\nset -e\n# everything PocketBase keeps lives in data/, which survives updates\nD=\"$HOME/data\"\nmkdir -p \"$D/pb_data\" \"$D/pb_public\" \"$D/pb_hooks\" \"$D/pb_migrations\"\nflags=\"--dir=$D/pb_data --publicDir=$D/pb_public --hooksDir=$D/pb_hooks --migrationsDir=$D/pb_migrations\"\nif [ ! -f \"$D/pb_data/.superuser-made\" ]; then\n  ./pocketbase superuser upsert \"$PB_ADMIN_EMAIL\" \"$PB_ADMIN_PASSWORD\" $flags\n  touch \"$D/pb_data/.superuser-made\"\nfi\nexec ./pocketbase serve --http=\"127.0.0.1:$PORT\" $flags\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/pocketbase/pocketbase/releases/download/v0.40.6/pocketbase_0.40.6_linux_amd64.zip",
+          "sha256": "0e1f609158ed945f809f8a02ae012aa0427129c66ebb63c1aee76f2c0309373f",
+          "format": "zip"
+        },
+        "arm64": {
+          "url": "https://github.com/pocketbase/pocketbase/releases/download/v0.40.6/pocketbase_0.40.6_linux_arm64.zip",
+          "sha256": "d22c66ceb67ca92b7d767f36d826e848a276bcfa3c197ead20bf87c42208984f",
+          "format": "zip"
+        }
+      }
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "description": "A PostgreSQL server your apps share: each app that needs postgres gets a login and a database of its own, and only sees DATABASE_URL. Pick the major version; each runs as its own app, so 16 and 17 can sit side by side.",
+      "homepage": "https://www.postgresql.org",
+      "repo": "https://www.postgresql.org/ftp/source/",
+      "license": "PostgreSQL",
+      "version": "18",
+      "kind": "service",
+      "site": "db",
+      "memory": "512M",
+      "files": {
+        "deprovision.sh": "#!/bin/sh\n# Called by nook when a binding goes: the login stops working; the database stays until you drop it.\nset -eu\nNAME=\"app_$(printf %s \"$1\" | tr - _)\"\n/usr/lib/postgresql/{version}/bin/psql -h \"$HOME/data/run\" -p \"$PORT\" -d postgres -v ON_ERROR_STOP=1 -qtAc \"alter role $NAME nologin\" \u003e/dev/null\n",
+        "export.sh": "#!/bin/sh\n# Called by nook when an app moves to another Postgres (nook-admin migrate): its database, to stdout.\nset -eu\nNAME=\"app_$(printf %s \"$1\" | tr - _)\"\nexec /usr/lib/postgresql/{version}/bin/pg_dump -h \"$HOME/data/run\" -p \"$PORT\" -Fc --no-owner --no-privileges \"$NAME\"\n",
+        "import.sh": "#!/bin/sh\n# Called by nook when an app moves here from another Postgres: its database from stdin, into the empty one\n# provision.sh just made, owned by the app's login. Refuses a database that already has tables.\nset -eu\nNAME=\"app_$(printf %s \"$1\" | tr - _)\"\nBIN=/usr/lib/postgresql/{version}/bin\nTABLES=$(\"$BIN/psql\" -h \"$HOME/data/run\" -p \"$PORT\" -d \"$NAME\" -v ON_ERROR_STOP=1 -qtAc \\\n  \"select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where c.relkind in ('r', 'p', 'v', 'm', 'S') and n.nspname not in ('pg_catalog', 'information_schema') and n.nspname not like 'pg_toast%'\")\nif [ \"$TABLES\" != 0 ]; then\n  echo \"$NAME already has $TABLES tables here; not mixing the copy into it\" \u003e\u00262\n  exit 1\nfi\nexec \"$BIN/pg_restore\" -h \"$HOME/data/run\" -p \"$PORT\" -d \"$NAME\" --no-owner --no-privileges --role=\"$NAME\" --exit-on-error --single-transaction\n",
+        "provision.sh": "#!/bin/sh\n# Called by nook when an app is bound: a login and a database of its own, and its DATABASE_URL.\nset -eu\nAPP=\"$1\"\nBIN=/usr/lib/postgresql/{version}/bin\nNAME=\"app_$(printf %s \"$APP\" | tr - _)\"\nPW=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \\n')\nq() { \"$BIN/psql\" -h \"$HOME/data/run\" -p \"$PORT\" -d postgres -v ON_ERROR_STOP=1 -qtAc \"$1\"; }\nif [ \"$(q \"select 1 from pg_roles where rolname = '$NAME'\")\" = 1 ]; then\n  q \"alter role $NAME with login password '$PW'\" \u003e/dev/null\nelse\n  q \"create role $NAME login password '$PW'\" \u003e/dev/null\nfi\n[ \"$(q \"select 1 from pg_database where datname = '$NAME'\")\" = 1 ] || q \"create database $NAME owner $NAME\" \u003e/dev/null\necho \"DATABASE_URL=postgres://$NAME:$PW@127.0.0.1:$PORT/$NAME\"\n",
+        "run": "#!/bin/sh\n# PostgreSQL {version} as a nook app: its cluster in data/pg, owned by this app's user, on $PORT (127.0.0.1 only)\n# and a socket only this user can reach, for the provision scripts.\nset -eu\nBIN=/usr/lib/postgresql/{version}/bin\nDATA=\"$HOME/data/pg\"\nSOCK=\"$HOME/data/run\"\nmkdir -p \"$SOCK\"\nchmod 700 \"$SOCK\"\nif [ ! -s \"$DATA/PG_VERSION\" ]; then\n  \"$BIN/initdb\" -D \"$DATA\" -U \"$(id -un)\" --auth-local=peer --auth-host=scram-sha-256 -E UTF8 --locale=C.UTF-8 \u003e/dev/null\nfi\nexec \"$BIN/postgres\" -D \"$DATA\" -k \"$SOCK\" -p \"$PORT\" -c listen_addresses=127.0.0.1 -c unix_socket_permissions=0700\n"
+      },
+      "apt": {
+        "packages": [
+          "postgresql-{version}"
+        ],
+        "repo": "pgdg"
+      },
+      "versions": [
+        "16",
+        "17",
+        "18"
+      ],
+      "mask": [
+        "postgresql@{version}-main",
+        "postgresql"
+      ],
+      "provides": {
+        "postgres": {
+          "desc": "PostgreSQL {version}: a login and a database per app",
+          "env": {
+            "DATABASE_URL": ""
+          },
+          "provision": "./provision.sh",
+          "deprovision": "./deprovision.sh",
+          "export": "./export.sh",
+          "import": "./import.sh"
+        }
+      }
+    },
+    {
+      "id": "push",
+      "name": "Push",
+      "description": "Web Push for every app on this server. Each app gets its own VAPID keys from its CI with NOOK_TOKEN; browsers subscribe and get a handle anyone can notify, now or at a set time. Built for local-first apps with no backend of their own.",
+      "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/push",
+      "repo": "https://github.com/sparkstonepdx/nook-catalog",
+      "license": "MIT",
+      "version": "v0.1.0",
+      "kind": "web",
+      "site": "push",
+      "health": "/v1/health",
+      "auth": "nook-token",
+      "open": [
+        "/v1/health",
+        "/v1/subscribe/*",
+        "/v1/subscriptions/*",
+        "/v1/send/*"
+      ],
+      "memory": "64M",
+      "env": [
+        {
+          "key": "PUSH_SUBJECT",
+          "desc": "A mailto: address push services can reach you at, like mailto:you@example.com",
+          "required": true
+        },
+        {
+          "key": "PUSH_SENDS_PER_HOUR",
+          "desc": "Pushes one handle can get an hour, sent and scheduled together",
+          "default": "60"
+        }
+      ],
+      "binary": "push",
+      "files": {
+        "run": "#!/bin/sh\nexec ./push\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/push-v0.1.0/push_v0.1.0_linux_amd64.tar.gz",
+          "sha256": "1b52a6aeade848ee71fe63f9ce68ee685709a323da33401e3961c330a07bad29",
+          "format": "tar.gz"
+        },
+        "arm64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/push-v0.1.0/push_v0.1.0_linux_arm64.tar.gz",
+          "sha256": "641834755d55bcb96b60b109537eb2c2e5f1e059ee57d6891411fda471acb08c",
+          "format": "tar.gz"
+        }
+      }
+    },
+    {
+      "id": "registry",
+      "name": "Registry",
+      "description": "A private npm and container image registry for your apps: publish and install your own scope, push and pull images, with NOOK_TOKEN. The scope's public packages pass through from npmjs.org, and names public there can't be taken.",
+      "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/registry",
+      "repo": "https://github.com/sparkstonepdx/nook-catalog",
+      "license": "MIT",
+      "version": "v0.3.0",
+      "kind": "web",
+      "site": "npm",
+      "health": "/-/ping",
+      "auth": "nook-token",
+      "memory": "128M",
+      "env": [
+        {
+          "key": "NPM_SCOPES",
+          "desc": "Scopes your apps may publish, comma-separated, like @sparkstone",
+          "required": true
+        },
+        {
+          "key": "NPM_URL",
+          "desc": "Public URL of this registry",
+          "default": "https://{site_host}"
+        },
+        {
+          "key": "OCI_MAX_MB",
+          "desc": "Largest container image layer, in MB",
+          "default": "2048"
+        }
+      ],
+      "binary": "registry",
+      "files": {
+        "run": "#!/bin/sh\nexec ./registry\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/registry-v0.3.0/registry_v0.3.0_linux_amd64.tar.gz",
+          "sha256": "7f0fba3ccc1bdf3b348bede7296a9eae86810a1797fbf3afa02210cd26fbe920",
+          "format": "tar.gz"
+        },
+        "arm64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/registry-v0.3.0/registry_v0.3.0_linux_arm64.tar.gz",
+          "sha256": "f2b344603de14a2646418ff75d56e758dfe29247015dcbb597830f61984b87ff",
+          "format": "tar.gz"
+        }
+      }
+    },
+    {
+      "id": "runners",
+      "name": "Runners",
+      "description": "GitHub Actions runners for an organization or a repository, each taking one job in a fresh folder. For your own repositories: no Docker, no root.",
+      "homepage": "https://github.com/sparkstonepdx/nook-catalog/tree/main/packages/runners",
+      "repo": "https://github.com/sparkstonepdx/nook-catalog",
+      "license": "MIT",
+      "version": "v0.1.0",
+      "kind": "service",
+      "site": "runners",
+      "health": "/health",
+      "listen": "any",
+      "memory": "2G",
+      "cpu": "200%",
+      "env": [
+        {
+          "key": "GITHUB_SCOPE",
+          "desc": "An organization (sparkstonepdx) or a repository (sparkstonepdx/wordbag)",
+          "required": true
+        },
+        {
+          "key": "GITHUB_TOKEN",
+          "desc": "Fine-grained token: Self-hosted runners (organization) or Administration (repository), read and write",
+          "secret": true,
+          "required": true
+        },
+        {
+          "key": "RUNNERS",
+          "desc": "How many jobs at once, 1 to 16",
+          "default": "2"
+        },
+        {
+          "key": "RUNNER_LABELS",
+          "desc": "Labels besides self-hosted, Linux and the architecture, comma-separated",
+          "default": "nook"
+        }
+      ],
+      "binary": "runners",
+      "files": {
+        "run": "#!/bin/sh\nexec ./runners\n"
+      },
+      "artifacts": {
+        "amd64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/runners-v0.1.0/runners_v0.1.0_linux_amd64.tar.gz",
+          "sha256": "ffe67e494f3588451b202ddb21c2c8228ba0fa8883ef7c13c4423b57d01d8df1",
+          "format": "tar.gz"
+        },
+        "arm64": {
+          "url": "https://github.com/sparkstonepdx/nook-catalog/releases/download/runners-v0.1.0/runners_v0.1.0_linux_arm64.tar.gz",
+          "sha256": "a951e38c878cc1b0f9a25e05d96aa2eb9567444361d0384016f39ef72a853b8d",
+          "format": "tar.gz"
+        }
+      }
+    }
+  ],
+  "repos": {
+    "collabora": {
+      "url": "https://www.collaboraoffice.com/repos/CollaboraOnline/CODE-deb",
+      "suite": "./",
+      "key": "7EB1530818B7683284483B7BD8915E456E7C440E",
+      "keyUrl": "https://www.collaboraoffice.com/downloads/gpg/collaboraonline-release-keyring.gpg"
+    },
+    "pgdg": {
+      "url": "https://apt.postgresql.org/pub/repos/apt",
+      "suite": "{codename}-pgdg",
+      "components": [
+        "main"
+      ],
+      "key": "B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8",
+      "keyUrl": "https://www.postgresql.org/media/keys/ACCC4CF8.asc"
+    }
+  }
+}
