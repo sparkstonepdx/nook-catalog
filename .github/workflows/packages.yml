@@ -44,6 +44,8 @@ jobs:
             if gh release view "$tag" >/dev/null 2>&1; then echo "$tag: already released"; continue; fi
             mkdir -p "dist/$name"
             for arch in amd64 arm64; do
+              # a package that embeds a pinned third-party binary (subduction) fetches and checks it first
+              if [ -x "$d/fetch.sh" ]; then "$d/fetch.sh" "$arch"; fi
               (cd "$d" && CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w" -o "$GITHUB_WORKSPACE/dist/$name/$name" .)
               tar -C "dist/$name" -czf "dist/${name}_${version}_linux_${arch}.tar.gz" "$name"
             done
