@@ -1,0 +1,2 @@
+The release build puts the Subduction server here (fetch.sh: subduction_cli for one architecture, checked against
+its pinned sha256) and embeds it. Without it the program builds and tests, but won't start a server.
