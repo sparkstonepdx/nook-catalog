@@ -1,0 +1,24 @@
+{
+  "id": "subduction",
+  "name": "Subduction",
+  "description": "Sync server for Automerge apps: documents and their history, over WebSockets, signed by a key kept with its data.",
+  "homepage": "https://github.com/inkandswitch/subduction",
+  "license": "MIT OR Apache-2.0",
+  "kind": "web",
+  "site": "subduction",
+  "memory": "700M",
+  "binary": "subduction_cli",
+  "env": [
+    { "key": "RUST_LOG", "desc": "Log level: error, warn, info, debug or trace", "default": "info" }
+  ],
+  "files": {
+    "run": "#!/bin/sh\n# Documents in ~/data/subduction, the server's identity key in ~/data/subduction.key: the same places the hand setup\n# (nook extras/subduction-app.sh) used, so nook's one-off move can copy that app's data straight in.\nset -e\nmkdir -p \"$HOME/data/subduction\"\nif [ ! -s \"$HOME/data/subduction.key\" ]; then\n  (umask 077; head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \\n' > \"$HOME/data/subduction.key\")\nfi\n# glibc otherwise keeps freed memory (tested 277 MB -> 19 MB after storing 135 MB of files)\nexport GLIBC_TUNABLES=glibc.malloc.arena_max=2:glibc.malloc.trim_threshold=131072:glibc.malloc.mmap_threshold=131072\nexec ./subduction_cli server --socket \"127.0.0.1:$PORT\" --data-dir \"$HOME/data/subduction\" \\\n  --key-file \"$HOME/data/subduction.key\" --service-name \"$SITE_HOST\"\n"
+  },
+  "source": {
+    "github": "inkandswitch/subduction",
+    "tag": "v0.22.0-nightly.2026-11-25",
+    "version": "^v(.+)$",
+    "assets": { "amd64": "^subduction-linux-x86_64-[0-9][0-9.]*$", "arm64": "^subduction-linux-aarch64-[0-9][0-9.]*$" },
+    "format": "raw"
+  }
+}
