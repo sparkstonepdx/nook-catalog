@@ -9,6 +9,7 @@ on:
     paths: ["packages/**", ".github/workflows/packages.yml"]
   pull_request:
     paths: ["packages/**", ".github/workflows/packages.yml"]
+  workflow_dispatch: # the subduction nightly workflow runs it after pinning
 permissions:
   contents: write
   actions: write
@@ -33,7 +34,7 @@ jobs:
             echo "::endgroup::"
           done
       - name: Release new versions
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "The 2.6 client the apps use today (automerge-subduction 0.20.1), for compat.sh",
+  "dependencies": { "@automerge/automerge-repo": "2.6.0-subduction.49" }
+}

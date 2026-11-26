@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "The 3.0 client the apps are moving to (@automerge/subduction 0.27), for compat.sh",
+  "dependencies": {
+    "@automerge/automerge-repo": "3.0.0-experimental.5",
+    "@automerge/automerge-repo-subduction": "3.0.0-experimental.5",
+    "@automerge/automerge-repo-subduction-network-websocket": "3.0.0-experimental.5"
+  }
+}

@@ -1,0 +1,54 @@
+# Pulls a newer Subduction nightly into packages/subduction (pin.sh): the newest, or the tag given. Before anything is
+# committed, compat.sh runs the new server on data the pinned one wrote, with the 2.6 and 3.0 clients the apps use;
+# if that fails nothing changes. Then it commits the pin to main and runs the packages workflow, which releases it; the catalog workflow follows, and each nook server
+# updates by its policy for the app (the version is vMAJOR.MINOR.YYYYMMDD, so a nightly is a patch update).
+# Run it from Actions → subduction nightly → Run workflow.
+name: subduction nightly
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "A nightly tag (v0.22.0-nightly.2026-11-26); empty for the newest"
+        required: false
+permissions:
+  contents: write
+  actions: write
+jobs:
+  pin:
+    runs-on: ${{ vars.RUNNER || 'ubuntu-24.04' }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: main }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: The pinned server, for the check
+        run: packages/subduction/fetch.sh amd64 && mv packages/subduction/bin/subduction_cli "$RUNNER_TEMP/old"
+      - name: Pin
+        id: pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          v=$(packages/subduction/pin.sh "${{ inputs.tag }}")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if [ -z "$v" ]; then echo "already on that nightly" >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Check the new server against the old one's data and the apps' clients
+        if: steps.pin.outputs.version != ''
+        run: |
+          packages/subduction/fetch.sh amd64 && mv packages/subduction/bin/subduction_cli "$RUNNER_TEMP/new"
+          rm -f packages/subduction/bin/TAG
+          packages/subduction/compat.sh "$RUNNER_TEMP/old" "$RUNNER_TEMP/new" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Commit and release
+        if: steps.pin.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=$(sed -n 's/^TAG="\(.*\)"/\1/p' packages/subduction/fetch.sh)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "subduction ${{ steps.pin.outputs.version }}: server $tag"
+          git push origin HEAD:main
+          # a push by this workflow's token starts no workflows, so run the release by hand
+          gh workflow run packages.yml --ref main
+          echo "pinned $tag as subduction ${{ steps.pin.outputs.version }}; releasing" >> "$GITHUB_STEP_SUMMARY"
