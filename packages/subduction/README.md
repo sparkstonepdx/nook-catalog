@@ -15,4 +15,7 @@ The [Subduction](https://github.com/inkandswitch/subduction) sync server for Aut
   the server's identity.
 - **Health:** `/health` answers once the server is listening.
 
-Upgrading Subduction: change the tag and both sums in `fetch.sh`, then `VERSION`. VERSION follows the server's version (subduction_cli 0.22 is v0.22.x), with the patch number for changes here, so the store sees each release as newer than the last (the first catalog entry was `0.22.0-nightly.2026-11-25`).
+Newer nightlies: run **Actions → subduction nightly** (empty for the newest, or a tag). It runs `pin.sh`, which pins
+that nightly's tag and sha256s in `fetch.sh` and sets `VERSION` to `vMAJOR.MINOR.YYYYMMDD` (`v0.22.20261126`), then
+commits to main and releases. Every nightly is a patch update to nook's store, and a new minor server version a minor
+one, so servers take them by their update policy for the app. Locally: `packages/subduction/pin.sh [TAG]`.
