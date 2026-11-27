@@ -15,8 +15,9 @@ import (
 	"time"
 )
 
-// Push services browsers use. An endpoint anywhere else is refused, so this can't be made to POST to any URL.
-var pushHosts = []string{"fcm.googleapis.com", "push.services.mozilla.com", "push.apple.com", "notify.windows.com"}
+// Push services browsers use, and ntfy.sh, the public UnifiedPush distributor. An endpoint anywhere else is refused,
+// so this can't be made to POST to any URL; a self-hosted distributor goes in PUSH_ENDPOINT_HOSTS.
+var pushHosts = []string{"fcm.googleapis.com", "push.services.mozilla.com", "push.apple.com", "notify.windows.com", "ntfy.sh"}
 
 const (
 	maxPayload  = 3072 // push services take about 4 KB after encryption
@@ -39,10 +40,11 @@ type server struct {
 	now    func() time.Time
 	mu     sync.Mutex
 	hits   map[string][]time.Time // rate limits: key -> recent times
+	native *nativeSender
 }
 
 func newServer(st *store, cfg config) *server {
-	return &server{st: st, cfg: cfg, client: &http.Client{Timeout: 15 * time.Second}, now: time.Now, hits: map[string][]time.Time{}}
+	return &server{st: st, cfg: cfg, client: &http.Client{Timeout: 15 * time.Second}, now: time.Now, hits: map[string][]time.Time{}, native: newNativeSender()}
 }
 
 // allow records a hit for key and says whether it's within max in the last hour.
@@ -105,6 +107,8 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.appOnly(w, r, s.putKeys)
 	case p == "/v1/stats" && r.Method == "GET":
 		s.appOnly(w, r, s.stats)
+	case len(parts) == 3 && parts[1] == "native" && (parts[2] == "apns" || parts[2] == "fcm") && (r.Method == "PUT" || r.Method == "DELETE"):
+		s.appOnly(w, r, func(w http.ResponseWriter, r *http.Request, app string) { s.putNative(w, r, app, parts[2]) })
 	case len(parts) == 3 && parts[1] == "subscribe" && r.Method == "POST":
 		s.subscribe(w, r, parts[2])
 	case len(parts) == 3 && parts[1] == "subscriptions" && r.Method == "DELETE":
@@ -153,12 +157,16 @@ func (s *server) getConfig(w http.ResponseWriter, r *http.Request, app string) {
 		fail(w, 500, err.Error())
 		return
 	}
-	writeJSON(w, 200, map[string]string{
+	s.st.mu.Lock()
+	nat := s.st.Native[app]
+	s.st.mu.Unlock()
+	writeJSON(w, 200, map[string]any{
 		"app":       app,
 		"publicKey": b64.EncodeToString(k.Public()),
 		"subscribe": "https://" + r.Host + "/v1/subscribe/" + app,
 		"send":      "https://" + r.Host + "/v1/send/",
 		"subject":   s.cfg.Subject,
+		"native":    map[string]bool{"apns": nat != nil && nat.APNs != nil, "fcm": nat != nil && nat.FCM != nil},
 	})
 }
 
@@ -209,9 +217,11 @@ func (s *server) stats(w http.ResponseWriter, r *http.Request, app string) {
 	s.st.mu.Lock()
 	defer s.st.mu.Unlock()
 	subs, jobs := 0, 0
+	kinds := map[string]int{"webpush": 0, "apns": 0, "fcm": 0}
 	for _, sub := range s.st.Subs {
 		if sub.App == app {
 			subs++
+			kinds[cmpOr(sub.Kind, "webpush")]++
 		}
 	}
 	for _, j := range s.st.Jobs {
@@ -219,7 +229,9 @@ func (s *server) stats(w http.ResponseWriter, r *http.Request, app string) {
 			jobs++
 		}
 	}
-	writeJSON(w, 200, map[string]any{"app": app, "subscriptions": subs, "scheduled": jobs, "hasKey": s.st.Apps[app] != nil})
+	nat := s.st.Native[app]
+	writeJSON(w, 200, map[string]any{"app": app, "subscriptions": subs, "byKind": kinds, "scheduled": jobs, "hasKey": s.st.Apps[app] != nil,
+		"native": map[string]bool{"apns": nat != nil && nat.APNs != nil, "fcm": nat != nil && nat.FCM != nil}})
 }
 
 func (s *server) endpointAllowed(endpoint string) bool {
@@ -249,9 +261,24 @@ func (s *server) subscribe(w http.ResponseWriter, r *http.Request, app string) {
 			P256dh string `json:"p256dh"`
 			Auth   string `json:"auth"`
 		} `json:"keys"`
+		APNs *struct {
+			Token   string `json:"token"`
+			Sandbox bool   `json:"sandbox"`
+		} `json:"apns"`
+		FCM *struct {
+			Token string `json:"token"`
+		} `json:"fcm"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 8192)).Decode(&in); err != nil {
-		fail(w, 400, "send the browser's PushSubscription as JSON (subscription.toJSON())")
+		fail(w, 400, "send the browser's PushSubscription as JSON (subscription.toJSON()), or {\"apns\": {\"token\"}} or {\"fcm\": {\"token\"}} from a native app")
+		return
+	}
+	switch {
+	case in.APNs != nil:
+		s.subscribeNative(w, app, "apns", strings.ToLower(in.APNs.Token), in.APNs.Sandbox)
+		return
+	case in.FCM != nil:
+		s.subscribeNative(w, app, "fcm", in.FCM.Token, false)
 		return
 	}
 	if !s.endpointAllowed(in.Endpoint) {
@@ -273,7 +300,7 @@ func (s *server) subscribe(w http.ResponseWriter, r *http.Request, app string) {
 	secret := randomID(32)
 	handle := ""
 	for h, sub := range s.st.Subs { // the same browser again: same handle, new secret
-		if sub.App == app && sub.Endpoint == in.Endpoint {
+		if sub.App == app && sub.Kind == "" && sub.Endpoint == in.Endpoint {
 			handle = h
 		}
 	}
@@ -438,6 +465,9 @@ func (s *server) deliver(handle string, m message) (gone bool, err error) {
 	if sub == nil {
 		return true, nil
 	}
+	if sub.Kind != "" {
+		return s.deliverNative(handle, sub, m)
+	}
 	if err != nil || k == nil {
 		return false, fmt.Errorf("%s has no key", sub.App)
 	}
@@ -527,4 +557,118 @@ func (s *server) runDue() {
 		}
 		s.st.mu.Unlock()
 	}
+}
+
+func cmpOr(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
+}
+
+// PUT /v1/native/apns or /v1/native/fcm (token): the app's credentials for native push. APNs takes {"teamId",
+// "keyId", "key" (the .p8 file's text), "bundleId"}; FCM takes the Firebase service account JSON as downloaded.
+// DELETE removes them, and with them the devices subscribed through that service.
+func (s *server) putNative(w http.ResponseWriter, r *http.Request, app, kind string) {
+	s.st.mu.Lock()
+	defer s.st.mu.Unlock()
+	n := s.st.Native[app]
+	if n == nil {
+		n = &native{}
+	}
+	if r.Method == "DELETE" {
+		if kind == "apns" {
+			n.APNs = nil
+		} else {
+			n.FCM = nil
+		}
+		for h, sub := range s.st.Subs {
+			if sub.App == app && sub.Kind == kind {
+				s.st.dropSub(h)
+			}
+		}
+	} else {
+		body := io.LimitReader(r.Body, 16384)
+		var err error
+		if kind == "apns" {
+			var c apnsCreds
+			if err = json.NewDecoder(body).Decode(&c); err == nil {
+				if err = c.check(); err == nil {
+					n.APNs = &c
+				}
+			}
+		} else {
+			var c fcmCreds
+			if err = json.NewDecoder(body).Decode(&c); err == nil {
+				if err = c.check(); err == nil {
+					n.FCM = &c
+				}
+			}
+		}
+		if err != nil {
+			fail(w, 400, err.Error())
+			return
+		}
+	}
+	s.st.Native[app] = n
+	if n.APNs == nil && n.FCM == nil {
+		delete(s.st.Native, app)
+	}
+	if err := s.st.save(); err != nil {
+		fail(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]bool{"apns": n.APNs != nil, "fcm": n.FCM != nil})
+}
+
+// subscribeNative: a native app's device token. Same handle for the same device again, like a browser.
+func (s *server) subscribeNative(w http.ResponseWriter, app, kind, token string, sandbox bool) {
+	if (kind == "apns" && !apnsTokenRE.MatchString(token)) || (kind == "fcm" && !fcmTokenRE.MatchString(token)) {
+		fail(w, 400, "that isn't a "+kind+" device token")
+		return
+	}
+	s.st.mu.Lock()
+	defer s.st.mu.Unlock()
+	n := s.st.Native[app]
+	if !appRE.MatchString(app) || n == nil || (kind == "apns" && n.APNs == nil) || (kind == "fcm" && n.FCM == nil) {
+		fail(w, 404, app+" has no "+kind+" credentials here: its build sends them with PUT /v1/native/"+kind+" first")
+		return
+	}
+	secret := randomID(32)
+	handle := ""
+	for h, sub := range s.st.Subs {
+		if sub.App == app && sub.Kind == kind && sub.Token == token {
+			handle = h
+		}
+	}
+	if handle == "" {
+		handle = randomID(32)
+	}
+	s.st.Subs[handle] = &subscription{App: app, Kind: kind, Token: token, Sandbox: sandbox, Secret: hashSecret(secret), Created: s.now().UTC()}
+	if err := s.st.save(); err != nil {
+		fail(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]string{"handle": handle, "secret": secret})
+}
+
+func (s *server) deliverNative(handle string, sub *subscription, m message) (gone bool, err error) {
+	s.st.mu.Lock()
+	n := s.st.Native[sub.App]
+	s.st.mu.Unlock()
+	switch {
+	case sub.Kind == "apns" && n != nil && n.APNs != nil:
+		gone, err = s.native.sendAPNs(s.client, n.APNs, sub, m, s.now())
+	case sub.Kind == "fcm" && n != nil && n.FCM != nil:
+		gone, err = s.native.sendFCM(s.client, n.FCM, sub, m, s.now())
+	default:
+		return false, fmt.Errorf("%s has no %s credentials", sub.App, sub.Kind)
+	}
+	if gone {
+		s.st.mu.Lock()
+		s.st.dropSub(handle)
+		s.st.save()
+		s.st.mu.Unlock()
+	}
+	return gone, err
 }

@@ -23,10 +23,15 @@ type appKeys struct {
 }
 
 type subscription struct {
-	App      string    `json:"app"`
-	Endpoint string    `json:"endpoint"`
-	P256dh   string    `json:"p256dh"`
-	Auth     string    `json:"auth"`
+	App string `json:"app"`
+	// Kind is "" for Web Push (browsers, and UnifiedPush on Android), or "apns" or "fcm" for a native app's device
+	// token (native.go).
+	Kind     string    `json:"kind,omitempty"`
+	Token    string    `json:"token,omitempty"`   // the device token, for apns and fcm
+	Sandbox  bool      `json:"sandbox,omitempty"` // apns: a development build, sent through Apple's sandbox
+	Endpoint string    `json:"endpoint,omitempty"`
+	P256dh   string    `json:"p256dh,omitempty"`
+	Auth     string    `json:"auth,omitempty"`
 	Secret   string    `json:"secret"` // sha256 of the secret that unsubscribes it
 	Created  time.Time `json:"created"`
 }
@@ -48,18 +53,19 @@ type job struct {
 }
 
 type store struct {
-	mu   sync.Mutex
-	path string
-	Apps map[string]*appKeys      `json:"apps"`
-	Subs map[string]*subscription `json:"subs"` // by handle
-	Jobs []*job                   `json:"jobs"`
+	mu     sync.Mutex
+	path   string
+	Apps   map[string]*appKeys      `json:"apps"`
+	Native map[string]*native       `json:"native,omitempty"` // apps' APNs and FCM credentials
+	Subs   map[string]*subscription `json:"subs"`             // by handle
+	Jobs   []*job                   `json:"jobs"`
 }
 
 func openStore(dir string) (*store, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
-	s := &store{path: filepath.Join(dir, "store.json"), Apps: map[string]*appKeys{}, Subs: map[string]*subscription{}}
+	s := &store{path: filepath.Join(dir, "store.json"), Apps: map[string]*appKeys{}, Subs: map[string]*subscription{}, Native: map[string]*native{}}
 	b, err := os.ReadFile(s.path)
 	if errors.Is(err, os.ErrNotExist) {
 		return s, nil
@@ -75,6 +81,9 @@ func openStore(dir string) (*store, error) {
 	}
 	if s.Subs == nil {
 		s.Subs = map[string]*subscription{}
+	}
+	if s.Native == nil {
+		s.Native = map[string]*native{}
 	}
 	return s, nil
 }

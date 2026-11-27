@@ -1,6 +1,6 @@
 # push
 
-Web Push for every app on a [nook](https://github.com/sparkstonepdx/nook) server: one install serves them all.
+Push for every app on a [nook](https://github.com/sparkstonepdx/nook) server: one install serves them all. Web Push for browsers, and native push for mobile apps: APNs on iOS, FCM on Android with Google Play services, and UnifiedPush on Android without Google. A handle works the same whichever kind of device is behind it.
 
 - **Keys:** each app gets its own VAPID key pair, made the first time its CI asks with `NOOK_TOKEN`. The private keys stay on the server; apps never hold one.
 - **Send handles:** a browser that subscribes gets a handle. Anyone holding a handle can push to that one browser, now or at a set time, and nothing else. A local-first app can put handles in its shared document, so players notify each other with no backend of their own.
@@ -42,14 +42,54 @@ self.addEventListener("push", (e) => {
 });
 ```
 
+## Native apps
+
+Each app brings its own credentials from its build, with `NOOK_TOKEN`. They stay on this server; the app never ships them.
+
+```yaml
+- name: Native push credentials
+  run: |
+    # iOS: the .p8 key from Apple Developer > Keys (with APNs enabled), its key id and your team id
+    jq -n --arg key "$APNS_KEY" '{teamId: "TEAM123456", keyId: "ABC123DEFG", key: $key, bundleId: "com.example.app"}' |
+      curl -fsS -X PUT -H "Authorization: Bearer $NOOK_TOKEN" --data-binary @- https://push.example.com/v1/native/apns
+    # Android: the Firebase service account JSON (Project settings > Service accounts > Generate new private key)
+    curl -fsS -X PUT -H "Authorization: Bearer $NOOK_TOKEN" --data-binary "$FCM_SERVICE_ACCOUNT" https://push.example.com/v1/native/fcm
+  env:
+    NOOK_TOKEN: ${{ secrets.NOOK_TOKEN }}
+    APNS_KEY: ${{ secrets.APNS_KEY }}
+    FCM_SERVICE_ACCOUNT: ${{ secrets.FCM_SERVICE_ACCOUNT }}
+```
+
+`push.json` then says which the app has: `"native": {"apns": true, "fcm": true}`. In the app, subscribe with the device token instead of a `PushSubscription`, and keep the handle and secret the same way:
+
+```js
+// Capacitor (@capacitor/push-notifications): iOS gives the APNs token, Android the FCM token
+PushNotifications.addListener("registration", async ({ value }) => {
+  const kind = Capacitor.getPlatform() === "ios" ? "apns" : "fcm";
+  const body = kind === "apns" ? { apns: { token: value, sandbox: import.meta.env.DEV } } : { fcm: { token: value } };
+  const { handle, secret } = await (await fetch(cfg.subscribe, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
+});
+await PushNotifications.register();
+```
+
+- **Payload:** a `title` or `body` in it shows as the system notification. The whole payload reaches the app: on iOS as `payload` beside `aps`, on Android as the data field `payload`, a JSON string. Without a title or body, iOS gets a background push.
+- **`sandbox`:** iOS builds run from Xcode get development tokens, which only Apple's sandbox takes; send `sandbox: true` from those.
+- **`topic`, `ttl`, `urgency`:** become `apns-collapse-id`, `apns-expiration` and `apns-priority` (low and very-low are 5, anything else 10) on iOS, and `collapse_key`, `ttl` and `priority` (NORMAL or HIGH) on Android.
+- **Gone:** a token Apple or Google says is no longer registered is dropped, and the sender gets 410, as with browsers.
+- **Removing:** `DELETE /v1/native/apns` or `/v1/native/fcm` removes the credentials and every device subscribed through them.
+
+**UnifiedPush** (Android without Google) is Web Push: the distributor app (ntfy, Sunup, NextPush) gives your app an endpoint and keys. Send them as a `PushSubscription` (`{"endpoint", "keys": {"p256dh", "auth"}}`), and pass `cfg.publicKey` as the VAPID key when registering. Endpoints on ntfy.sh and Mozilla's push service are allowed already; for your own ntfy (it's in the nook catalog), add its host to `PUSH_ENDPOINT_HOSTS`.
+
 ## API
 
 | | | |
 |---|---|---|
 | `GET /v1/config` | token | the app's public key and URLs; makes the key pair the first time |
 | `PUT /v1/keys` | token | bring an existing key pair; `?replace=1` if browsers are subscribed with another |
-| `GET /v1/stats` | token | subscriptions and scheduled pushes for the app |
-| `POST /v1/subscribe/APP` | open | a `PushSubscription` → `{handle, secret}`; the same browser again gets the same handle |
+| `GET /v1/stats` | token | subscriptions (by kind) and scheduled pushes for the app |
+| `PUT /v1/native/apns` | token | `{teamId, keyId, key, bundleId}`; `DELETE` removes them |
+| `PUT /v1/native/fcm` | token | the Firebase service account JSON; `DELETE` removes it |
+| `POST /v1/subscribe/APP` | open | a `PushSubscription`, `{"apns": {token, sandbox?}}` or `{"fcm": {token}}` → `{handle, secret}`; the same device again gets the same handle |
 | `DELETE /v1/subscriptions/HANDLE` | open | with `X-Push-Secret` |
 | `POST /v1/send/HANDLE` | open | `{payload, at?, topic?, ttl?, urgency?}` → 200 sent, 202 scheduled, 410 gone |
 | `DELETE /v1/send/HANDLE/ID` | open | cancel a scheduled push by id or topic |
@@ -68,14 +108,14 @@ self.addEventListener("push", (e) => {
 | `PUSH_SENDS_PER_HOUR` | 60 | per handle, sends and schedules together |
 | subscriptions | 30 an hour per IP | |
 | scheduled | 100 per handle | |
-| `PUSH_ENDPOINT_HOSTS` | | push services beyond FCM, Mozilla, Apple and Windows, comma-separated |
+| `PUSH_ENDPOINT_HOSTS` | | Web Push services beyond FCM, Mozilla, Apple, Windows and ntfy.sh, comma-separated (your own ntfy, for UnifiedPush) |
 
 Endpoints must be HTTPS on a known push service, so the server can't be pointed at other URLs.
 
 ## Data
 
-`$HOME/data/push/store.json` (0600): every app's key pair, the subscriptions, and the scheduled pushes. Back it up: losing an app's private key means every browser has to subscribe again.
+`$HOME/data/push/store.json` (0600): every app's key pair and native credentials, the subscriptions, and the scheduled pushes. Back it up: losing an app's private key means every browser has to subscribe again.
 
 ## Development
 
-`go test ./...` covers encryption (checked against a separately written browser side), VAPID signatures, the HTTP flow and scheduling. `scripts/interop.mjs` checks the output with `http_ece` and `web-push`, the reference libraries.
+`go test ./...` covers encryption (checked against a separately written browser side), VAPID signatures, the HTTP flow and scheduling, and native push against fakes of APNs, Google's token endpoint and FCM (the JWTs checked with the keys' public halves). `scripts/interop.mjs` checks the output with `http_ece` and `web-push`, the reference libraries.
