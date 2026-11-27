@@ -52,6 +52,10 @@ type native struct {
 
 const googleTokenURI = "https://oauth2.googleapis.com/token"
 
+// maxEncryptedNative is the largest payload for a device that gets encrypted pushes: encryption adds 103 bytes and
+// base64 a third, and the result has to fit Apple's 4 KB with room for the rest of the push.
+const maxEncryptedNative = 2800
+
 var (
 	apnsIDRE    = regexp.MustCompile(`^[A-Z0-9]{10}$`)
 	bundleRE    = regexp.MustCompile(`^[A-Za-z0-9.-]{1,155}$`)
@@ -226,6 +230,22 @@ func (n *nativeSender) fcmToken(client *http.Client, c *fcmCreds, now time.Time)
 	return out.AccessToken, nil
 }
 
+// sealed is the payload encrypted to the device's keys (the Web Push encryption, RFC 8291), base64url, or "" for a
+// device that subscribed without keys. Apple and Google then carry only ciphertext; the app decrypts it on the
+// device (the Notification Service Extension on iOS, the push service on Android) and shows the notification itself.
+func sealed(sub *subscription, payload []byte) (string, error) {
+	if sub.P256dh == "" {
+		return "", nil
+	}
+	p, _ := decodeKey(sub.P256dh)
+	a, _ := decodeKey(sub.Auth)
+	ct, err := encrypt(payload, p, a)
+	if err != nil {
+		return "", err
+	}
+	return b64.EncodeToString(ct), nil
+}
+
 // alertOf is the payload's title and body, when it has them: they become the notification the system shows.
 func alertOf(payload json.RawMessage) (title, body string) {
 	var p struct {
@@ -244,19 +264,34 @@ func (n *nativeSender) sendAPNs(client *http.Client, c *apnsCreds, sub *subscrip
 		return false, err
 	}
 	title, text := alertOf(m.Payload)
+	enc, err := sealed(sub, m.Payload)
+	if err != nil {
+		return false, err
+	}
 	aps := map[string]any{}
 	pushType, priority := "alert", "10"
-	if title != "" || text != "" {
+	switch {
+	case (title != "" || text != "") && enc != "":
+		// shown, but not by Apple: the app's Notification Service Extension decrypts "enc" and replaces this
+		// placeholder, which is all anyone sees if the extension can't run
+		aps["alert"] = map[string]string{"body": "New notification"}
+		aps["mutable-content"] = 1
+		aps["sound"] = "default"
+	case title != "" || text != "":
 		aps["alert"] = map[string]string{"title": title, "body": text}
 		aps["sound"] = "default"
-		if m.Urgency == "low" || m.Urgency == "very-low" {
-			priority = "5"
-		}
-	} else {
+	default:
 		aps["content-available"] = 1
 		pushType, priority = "background", "5" // Apple requires 5 for background pushes
 	}
-	body, _ := json.Marshal(map[string]any{"aps": aps, "payload": m.Payload})
+	if pushType == "alert" && (m.Urgency == "low" || m.Urgency == "very-low") {
+		priority = "5"
+	}
+	content := map[string]any{"aps": aps, "payload": m.Payload}
+	if enc != "" {
+		content = map[string]any{"aps": aps, "enc": enc}
+	}
+	body, _ := json.Marshal(content)
 	req, _ := http.NewRequest("POST", n.apnsURL(sub.Sandbox)+"/3/device/"+sub.Token, bytes.NewReader(body))
 	req.Header.Set("authorization", "bearer "+jwt)
 	req.Header.Set("apns-topic", c.BundleID)
@@ -311,8 +346,16 @@ func (n *nativeSender) sendFCM(client *http.Client, c *fcmCreds, sub *subscripti
 	if m.Topic != "" {
 		android["collapse_key"] = m.Topic
 	}
+	enc, err := sealed(sub, m.Payload)
+	if err != nil {
+		return false, err
+	}
 	msg := map[string]any{"token": sub.Token, "data": map[string]string{"payload": string(m.Payload)}, "android": android}
-	if title, text := alertOf(m.Payload); title != "" || text != "" {
+	if enc != "" {
+		// data only, so Google can't show (or read) it: the app's push service decrypts "enc" and shows it
+		msg["data"] = map[string]string{"enc": enc}
+		android["priority"] = "HIGH" // a data-only message has to wake the app to be shown
+	} else if title, text := alertOf(m.Payload); title != "" || text != "" {
 		msg["notification"] = map[string]string{"title": title, "body": text}
 	}
 	body, _ := json.Marshal(map[string]any{"message": msg})

@@ -1,0 +1,19 @@
+{
+  "auth": "MDEyMzQ1Njc4OWFiY2RlZg",
+  "cases": [
+    {
+      "enc": "IWZBiZH1JA5gRi2eHjSuWQAAEABBBN0TRO94c8bJBBHeAXRmlR8UjHTfSKv7bhM2ayirla76DrEJz3BZpQU8rwPg_ZTKBm6ANdVAlidqx6jCEyzfqjyt0dSRYJDu8qshaN_cdsHOw9rpKlJ591IGWguLQUgDwf0hO4jK35FxnPhkhW4WxhrzP9HEvAi6VkB9TvlZhElQuCH_PCi5h7j-i460RwI",
+      "payload": "{\"title\":\"Feed time\",\"body\":\"It's been 3 hours\",\"url\":\"/log\"}"
+    },
+    {
+      "enc": "6MSQiqooT9KiZ2ioB_tG1AAAEABBBDrARMprf6oqih4XkK2iTbzv9T6VS1-DcyOjuWf952aXAqHVpB97ftknwwA6edRf-ycYHM-5irz6Wg1Z47XXjYIQQrhN25_KtG8VFAR-mK5aRjD5XqBeIizn7vtJdpM",
+      "payload": "{\"sync\":true}"
+    },
+    {
+      "enc": "tEZuJK7q5J7lbEHo5j33dgAAEABBBMohZS9MSDA8t74ydnDMbJelprL4SUKI5cwQnZvXxwxXJvhkKlQ5PzmBd5y1OgDcd4BJzIwQ2zDtTtPEpXoETzYoiX9G2mKaRA6BUuh6pthXfWGPL-weWeY2tT9McWNAAFQauZeKhnqUxnw",
+      "payload": "{\"title\":\"ü ✓ 日本\"}"
+    }
+  ],
+  "p256dh": "BOty342XcWXegEmVMqJoUwzWB3ddFg67WIgy_1GGl2VhR3QeGatV_mFSMjhrdCJLfvX63iB4CLbNE3Mc9Sc_ZAI",
+  "privateKey": "AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09o"
+}

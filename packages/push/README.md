@@ -63,16 +63,16 @@ Each app brings its own credentials from its build, with `NOOK_TOKEN`. They stay
 `push.json` then says which the app has: `"native": {"apns": true, "fcm": true}`. In the app, subscribe with the device token instead of a `PushSubscription`, and keep the handle and secret the same way:
 
 ```js
-// Capacitor (@capacitor/push-notifications): iOS gives the APNs token, Android the FCM token
-PushNotifications.addListener("registration", async ({ value }) => {
-  const kind = Capacitor.getPlatform() === "ios" ? "apns" : "fcm";
-  const body = kind === "apns" ? { apns: { token: value, sandbox: import.meta.env.DEV } } : { fcm: { token: value } };
-  const { handle, secret } = await (await fetch(cfg.subscribe, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
-});
-await PushNotifications.register();
+// Capacitor, with @sparkstone/capacitor-push (capacitor/ here): registers, subscribes with the device's keys
+import { subscribe } from "@sparkstone/capacitor-push";
+const { handle, secret } = await subscribe(cfg);
 ```
 
-- **Payload:** a `title` or `body` in it shows as the system notification. The whole payload reaches the app: on iOS as `payload` beside `aps`, on Android as the data field `payload`, a JSON string. Without a title or body, iOS gets a background push.
+Or post `{"apns": {"token", "sandbox"?}}` / `{"fcm": {"token"}}` yourself.
+
+- **Encrypted:** a device that subscribes with `"keys": {"p256dh", "auth"}` beside its token (the plugin always does) gets every push encrypted to those keys, the Web Push way, so Apple and Google carry only ciphertext. iOS gets a "New notification" placeholder with `mutable-content` and the ciphertext as `enc`; the app's Notification Service Extension decrypts it and shows the real title and body. Android gets a data-only message with `enc`, which the plugin decrypts and shows. Encrypted payloads are up to 2800 bytes (Apple's 4 KB, after encryption and base64). Without keys, pushes go readable as below.
+
+- **Payload (unencrypted):** a `title` or `body` in it shows as the system notification. The whole payload reaches the app: on iOS as `payload` beside `aps`, on Android as the data field `payload`, a JSON string. Without a title or body, iOS gets a background push.
 - **`sandbox`:** iOS builds run from Xcode get development tokens, which only Apple's sandbox takes; send `sandbox: true` from those.
 - **`topic`, `ttl`, `urgency`:** become `apns-collapse-id`, `apns-expiration` and `apns-priority` (low and very-low are 5, anything else 10) on iOS, and `collapse_key`, `ttl` and `priority` (NORMAL or HIGH) on Android.
 - **Gone:** a token Apple or Google says is no longer registered is dropped, and the sender gets 410, as with browsers.

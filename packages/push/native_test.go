@@ -263,3 +263,68 @@ func TestNativeRemoveDropsDevices(t *testing.T) {
 		t.Fatalf("a bad token was taken: %d", w.Code)
 	}
 }
+
+// A device that subscribes with keys gets only ciphertext through Apple and Google, which it can decrypt.
+func TestNativeEncrypted(t *testing.T) {
+	s, f := nativeSetup(t)
+	_, keyPEM := p8(t)
+	j, _ := json.Marshal(map[string]string{"teamId": "TEAM123456", "keyId": "ABC123DEFG", "key": keyPEM, "bundleId": "com.sparkstone.kinlog"})
+	call(s, "PUT", "/v1/native/apns", "kinlog", string(j))
+	_, account := serviceAccount(t)
+	call(s, "PUT", "/v1/native/fcm", "kinlog", account)
+	keys := func(b *browser) string {
+		return `"keys":{"p256dh":"` + b64.EncodeToString(b.priv.PublicKey().Bytes()) + `","auth":"` + b64.EncodeToString(b.auth) + `"}`
+	}
+	if w := call(s, "POST", "/v1/subscribe/kinlog", "", `{"apns":{"token":"`+iosToken+`"},"keys":{"p256dh":"short","auth":"x"}}`); w.Code != 400 {
+		t.Fatalf("bad keys taken: %d", w.Code)
+	}
+	phone, droid := newBrowser(t), newBrowser(t)
+	hi, _ := subscribeNative(t, s, "kinlog", `{"apns":{"token":"`+iosToken+`"},`+keys(phone)+`}`)
+	ha, _ := subscribeNative(t, s, "kinlog", `{"fcm":{"token":"dGVzdC1kZXZpY2U:APA91bH-test_token.value-1234567890"},`+keys(droid)+`}`)
+	payload := `{"title":"Feed time","body":"It's been 3 hours","url":"/log"}`
+
+	if w := call(s, "POST", "/v1/send/"+hi, "", `{"payload":`+payload+`}`); w.Code != 200 {
+		t.Fatalf("send: %d %s", w.Code, w.Body)
+	}
+	body := f.bodies[len(f.bodies)-1]
+	if strings.Contains(body, "Feed time") || strings.Contains(body, "/log") {
+		t.Fatalf("Apple could read it: %s", body)
+	}
+	var apns struct {
+		APS map[string]any `json:"aps"`
+		Enc string         `json:"enc"`
+	}
+	json.Unmarshal([]byte(body), &apns)
+	if apns.APS["mutable-content"] != float64(1) || apns.APS["alert"] == nil {
+		t.Fatalf("the extension wouldn't run: %s", body)
+	}
+	ct, _ := b64.DecodeString(apns.Enc)
+	if got := phone.decrypt(t, ct); string(got) != payload {
+		t.Fatalf("iOS decrypts %q", got)
+	}
+
+	if w := call(s, "POST", "/v1/send/"+ha, "", `{"payload":`+payload+`,"urgency":"low"}`); w.Code != 200 {
+		t.Fatalf("send: %d %s", w.Code, w.Body)
+	}
+	body = f.bodies[len(f.bodies)-1]
+	var fcm struct {
+		Message struct {
+			Data         map[string]string `json:"data"`
+			Notification map[string]string `json:"notification"`
+			Android      map[string]any    `json:"android"`
+		} `json:"message"`
+	}
+	json.Unmarshal([]byte(body), &fcm)
+	if strings.Contains(body, "Feed time") || fcm.Message.Notification != nil || fcm.Message.Android["priority"] != "HIGH" {
+		t.Fatalf("Google could read or show it, or it won't wake the app: %s", body)
+	}
+	ct, _ = b64.DecodeString(fcm.Message.Data["enc"])
+	if got := droid.decrypt(t, ct); string(got) != payload {
+		t.Fatalf("Android decrypts %q", got)
+	}
+
+	big := `{"title":"` + strings.Repeat("x", maxEncryptedNative) + `"}`
+	if w := call(s, "POST", "/v1/send/"+hi, "", `{"payload":`+big+`}`); w.Code != 400 {
+		t.Fatalf("an encrypted push too big for Apple was taken: %d", w.Code)
+	}
+}

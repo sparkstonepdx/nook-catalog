@@ -269,16 +269,27 @@ func (s *server) subscribe(w http.ResponseWriter, r *http.Request, app string) {
 			Token string `json:"token"`
 		} `json:"fcm"`
 	}
+	// a native device with keys gets its pushes encrypted to them (native.go), like a browser
 	if err := json.NewDecoder(io.LimitReader(r.Body, 8192)).Decode(&in); err != nil {
 		fail(w, 400, "send the browser's PushSubscription as JSON (subscription.toJSON()), or {\"apns\": {\"token\"}} or {\"fcm\": {\"token\"}} from a native app")
 		return
 	}
-	switch {
-	case in.APNs != nil:
-		s.subscribeNative(w, app, "apns", strings.ToLower(in.APNs.Token), in.APNs.Sandbox)
-		return
-	case in.FCM != nil:
-		s.subscribeNative(w, app, "fcm", in.FCM.Token, false)
+	if in.APNs != nil || in.FCM != nil {
+		var p, a []byte
+		if in.Keys.P256dh != "" || in.Keys.Auth != "" {
+			var err1, err2 error
+			p, err1 = decodeKey(in.Keys.P256dh)
+			a, err2 = decodeKey(in.Keys.Auth)
+			if err1 != nil || err2 != nil || len(p) != 65 || len(a) != 16 {
+				fail(w, 400, "keys.p256dh and keys.auth are the wrong size")
+				return
+			}
+		}
+		if in.APNs != nil {
+			s.subscribeNative(w, app, "apns", strings.ToLower(in.APNs.Token), in.APNs.Sandbox, p, a)
+		} else {
+			s.subscribeNative(w, app, "fcm", in.FCM.Token, false, p, a)
+		}
 		return
 	}
 	if !s.endpointAllowed(in.Endpoint) {
@@ -371,6 +382,10 @@ func (s *server) send(w http.ResponseWriter, r *http.Request, handle string) {
 	s.st.mu.Unlock()
 	if sub == nil {
 		fail(w, 410, "that handle is gone: the browser unsubscribed or its subscription expired")
+		return
+	}
+	if sub.Kind != "" && sub.P256dh != "" && len(in.Payload) > maxEncryptedNative {
+		fail(w, 400, fmt.Sprintf("payload is %d bytes; to an encrypted native device the limit is %d", len(in.Payload), maxEncryptedNative))
 		return
 	}
 	if !s.allow("send:"+handle, s.cfg.SendsPerHour) {
@@ -622,7 +637,7 @@ func (s *server) putNative(w http.ResponseWriter, r *http.Request, app, kind str
 }
 
 // subscribeNative: a native app's device token. Same handle for the same device again, like a browser.
-func (s *server) subscribeNative(w http.ResponseWriter, app, kind, token string, sandbox bool) {
+func (s *server) subscribeNative(w http.ResponseWriter, app, kind, token string, sandbox bool, p256dh, auth []byte) {
 	if (kind == "apns" && !apnsTokenRE.MatchString(token)) || (kind == "fcm" && !fcmTokenRE.MatchString(token)) {
 		fail(w, 400, "that isn't a "+kind+" device token")
 		return
@@ -644,7 +659,11 @@ func (s *server) subscribeNative(w http.ResponseWriter, app, kind, token string,
 	if handle == "" {
 		handle = randomID(32)
 	}
-	s.st.Subs[handle] = &subscription{App: app, Kind: kind, Token: token, Sandbox: sandbox, Secret: hashSecret(secret), Created: s.now().UTC()}
+	sub := &subscription{App: app, Kind: kind, Token: token, Sandbox: sandbox, Secret: hashSecret(secret), Created: s.now().UTC()}
+	if len(p256dh) > 0 {
+		sub.P256dh, sub.Auth = b64.EncodeToString(p256dh), b64.EncodeToString(auth)
+	}
+	s.st.Subs[handle] = sub
 	if err := s.st.save(); err != nil {
 		fail(w, 500, err.Error())
 		return
