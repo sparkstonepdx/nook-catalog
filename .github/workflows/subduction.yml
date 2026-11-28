@@ -1,7 +1,7 @@
 # Pulls a newer Subduction nightly into packages/subduction (pin.sh): the newest, or the tag given. Before anything is
 # committed, compat.sh runs the new server on data the pinned one wrote, with the 2.6 and 3.0 clients the apps use;
 # if that fails nothing changes. Then it commits the pin to main and runs the packages workflow, which releases it; the catalog workflow follows, and each nook server
-# updates by its policy for the app (the version is vMAJOR.MINOR.YYYYMMDD, so a nightly is a patch update).
+# updates by its policy for the app (the version is vMAJOR.MINOR.YYYYMMDDNN, so a nightly is a patch update).
 # Run it from Actions → subduction nightly → Run workflow.
 name: subduction nightly
 on:
