@@ -1,0 +1,21 @@
+{
+  "name": "@sparkstone/capacitor-push",
+  "version": "0.1.0",
+  "description": "Native push for Capacitor apps through the nook push app: APNs and FCM, with each push encrypted to the device",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist/", "android/src/main/", "android/build.gradle", "ios/Sources/", "ios/NotificationServiceExtension/", "Package.swift", "SparkstoneCapacitorPush.podspec"],
+  "repository": { "type": "git", "url": "git+https://github.com/sparkstonepdx/nook-catalog.git", "directory": "packages/push/capacitor" },
+  "scripts": {
+    "build": "tsc",
+    "test": "sh test.sh"
+  },
+  "capacitor": {
+    "ios": { "src": "ios" },
+    "android": { "src": "android" }
+  },
+  "peerDependencies": { "@capacitor/core": ">=8.0.0" },
+  "devDependencies": { "@capacitor/core": "^8.3.7", "typescript": "^5.9.3" }
+}

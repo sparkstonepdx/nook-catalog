@@ -22,12 +22,15 @@ jobs:
         with: { go-version: "1.24" }
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
       - name: Test
         run: |
           set -euo pipefail
           for d in packages/*/; do
             echo "::group::${d}"
             (cd "$d" && test -z "$(gofmt -l .)" && go vet ./... && go test ./...)
+            if [ -x "$d/capacitor/test.sh" ]; then "$d/capacitor/test.sh"; fi # the native client's decryption, against the server's vectors
             if [ -f "$d/scripts/interop.mjs" ]; then
               (cd "$d/scripts" && npm i --no-audit --no-fund --no-save http_ece@1 web-push@3 >/dev/null && node interop.mjs)
             fi
