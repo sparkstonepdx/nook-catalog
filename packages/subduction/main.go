@@ -59,7 +59,8 @@ func install(home string) (string, error) {
 	return p, os.Rename(tmp, p)
 }
 
-// freePort is a local port nothing is listening on, for the server behind this one.
+// freePort is a local port nothing is listening on, for the server behind this one. nook only lets an app listen
+// on its own port unless its entry says "listen": "any" (apps/subduction.json does), which allows this one too.
 func freePort() (int, error) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -91,7 +92,7 @@ func main() {
 	}
 	inner, err := freePort()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("no local port for the server behind this one (does the catalog entry still say \"listen\": \"any\"?): %v", err)
 	}
 	cmd := exec.Command(cli, "server", "--socket", "127.0.0.1:"+strconv.Itoa(inner), "--data-dir", filepath.Join(data, "subduction"),
 		"--key-file", keyFile, "--service-name", host)
