@@ -59,15 +59,25 @@ func install(home string) (string, error) {
 	return p, os.Rename(tmp, p)
 }
 
-// freePort is a local port nothing is listening on, for the server behind this one. nook only lets an app listen
-// on its own port unless its entry says "listen": "any" (apps/subduction.json does), which allows this one too.
+// freePort is a local port nothing is listening on, for the server behind this one. nook's sandbox only lets an app
+// bind its own port, plus (with "listen": "any", which apps/subduction.json sets) unprivileged ports outside nook's
+// app range (20000 to 29999 by default). Port 0, "any free port", isn't among those, so the kernel can't pick one:
+// this tries ports from 30000 to 32767, above the app range and below the kernel's own ephemeral ports (from 32768),
+// so an outgoing connection won't have taken it.
 func freePort() (int, error) {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return 0, err
+	start := 30000 + int(time.Now().UnixNano()%2768)
+	var last error
+	for i := 0; i < 2768; i++ {
+		p := 30000 + (start-30000+i)%2768
+		l, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(p))
+		if err != nil {
+			last = err
+			continue
+		}
+		l.Close()
+		return p, nil
 	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port, nil
+	return 0, last
 }
 
 // isSync: a request for the server behind, not the page.
