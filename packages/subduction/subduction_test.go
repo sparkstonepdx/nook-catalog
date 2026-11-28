@@ -103,3 +103,14 @@ func TestIsSync(t *testing.T) {
 		t.Fatal("long poll is sync")
 	}
 }
+
+// The inner port is never 0 (the sandbox refuses binding "any port") and stays between nook's app range and the
+// kernel's ephemeral ports.
+func TestFreePort(t *testing.T) {
+	for i := 0; i < 20; i++ {
+		p, err := freePort()
+		if err != nil || p < 30000 || p > 32767 {
+			t.Fatalf("port %d: %v", p, err)
+		}
+	}
+}
