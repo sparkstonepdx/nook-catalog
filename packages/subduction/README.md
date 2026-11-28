@@ -16,7 +16,7 @@ The [Subduction](https://github.com/inkandswitch/subduction) sync server for Aut
 - **Health:** `/health` answers once the server is listening.
 
 Newer nightlies: run **Actions → subduction nightly** (empty for the newest, or a tag). It runs `pin.sh`, which pins
-that nightly's tag and sha256s in `fetch.sh` and sets `VERSION` to `vMAJOR.MINOR.YYYYMMDD` (`v0.22.20261126`), then
+that nightly's tag and sha256s in `fetch.sh` and sets `VERSION` to `vMAJOR.MINOR.YYYYMMDDNN` (`v0.22.2026112600`; NN is the wrapper revision, bumped by hand for a wrapper-only change), then
 commits to main and releases. Every nightly is a patch update to nook's store, and a new minor server version a minor
 one, so servers take them by their update policy for the app. Locally: `packages/subduction/pin.sh [TAG]`.
 
